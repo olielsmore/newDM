@@ -338,8 +338,11 @@ export class ToolExecutor {
             time: "day",
           };
           if (args.placeId) {
-            const place = this.db.getPlace(String(args.placeId));
-            if (!place) throw new Error(`Unknown place: ${args.placeId}`);
+            const place = this.db.findPlace(String(args.placeId));
+            if (!place) {
+              const known = this.db.listPlaces().map((p) => `${p.id} ("${p.name}")`).join(", ");
+              throw new Error(`Unknown place: ${args.placeId}. Known places: ${known}`);
+            }
             scene.placeId = place.id;
             scene.name = place.name;
             scene.description = place.description;

@@ -96,6 +96,10 @@ export function stageDirection(db: GameDb): string {
       .map((e) => e.turn);
     return rollTurns.length ? turn - Math.max(...rollTurns) : 99;
   })();
+  if (turnsSinceRoll >= 3)
+    notes.push(
+      "You have not touched the dice in several beats. If the player attempts anything uncertain — reading people, persuading, sneaking, searching — adjudicate it with a real check, and let NPCs resist.",
+    );
   if (turnsSinceRoll >= 6) notes.push("It has been a while since anything was at stake — introduce pressure or consequence soon.");
 
   const scene = db.getScene();

@@ -107,6 +107,20 @@ describe("tools", () => {
     expect(found[0].subject).toBe("The Well");
   });
 
+  it("move_scene fuzzy-matches wrong-but-close place ids", () => {
+    const tools = new ToolExecutor(db, 1);
+    const r = tools.execute("move_scene", { placeId: "mine-gallery" }) as { moved: boolean; scene: { placeId: string } };
+    expect(r.moved).toBe(true);
+    expect(r.scene.placeId).toBe("warrens-gallery");
+    const byName = tools.execute("move_scene", { placeId: "The Saltmine Mouth" }) as { scene: { placeId: string } };
+    expect(byName.scene.placeId).toBe("warrens-entrance");
+  });
+
+  it("move_scene error lists known places for recovery", () => {
+    const tools = new ToolExecutor(db, 1);
+    expect(() => tools.execute("move_scene", { placeId: "xyzzy" })).toThrow(/Known places:.*warrens-gallery/);
+  });
+
   it("lookup finds content by fuzzy name", () => {
     const tools = new ToolExecutor(db, 1);
     const spell = tools.execute("lookup", { kind: "spell", name: "guiding bolt" }) as { name: string };

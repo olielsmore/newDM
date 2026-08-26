@@ -49,7 +49,24 @@ async function main(): Promise<void> {
   }
 
   const agent = new DmAgent(db, providerFromEnv(), scribeProviderFromEnv());
-  const rl = readline.createInterface({ input: stdin, output: stdout });
+
+  // Interactive: readline. Piped (scripted playtests): consume stdin up front,
+  // since readline drops lines that arrive while a turn is streaming.
+  let ask: (prompt: string) => Promise<string | undefined>;
+  let cleanup = () => {};
+  if (stdin.isTTY) {
+    const rl = readline.createInterface({ input: stdin, output: stdout });
+    ask = (prompt) => rl.question(prompt).catch(() => undefined);
+    cleanup = () => rl.close();
+  } else {
+    const raw = fs.readFileSync(0, "utf8");
+    const queue = raw.split("\n").map((l) => l.trim()).filter(Boolean);
+    ask = async (prompt) => {
+      const next = queue.shift();
+      if (next !== undefined) stdout.write(prompt + next + "\n");
+      return next;
+    };
+  }
 
   const hooks = {
     onText: (d: string) => stdout.write(d),
@@ -79,7 +96,9 @@ async function main(): Promise<void> {
   }
 
   for (;;) {
-    const input = (await rl.question(bold("\n> "))).trim();
+    const answer = await ask(bold("\n> "));
+    if (answer === undefined) break;
+    const input = answer.trim();
     if (!input) continue;
 
     if (input === "/quit" || input === "/exit") break;
@@ -118,7 +137,7 @@ async function main(): Promise<void> {
     }
   }
 
-  rl.close();
+  cleanup();
   db.close();
   console.log(dim("\nThe table is packed up. The save lives in " + dbPath + "\n"));
 }

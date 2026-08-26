@@ -160,6 +160,37 @@ export class GameDb {
     return row ? (JSON.parse(row.data) as Place) : undefined;
   }
 
+  /** Fuzzy lookup: exact id, exact name, then best token overlap ("mine-gallery" -> "warrens-gallery"). */
+  findPlace(idOrName: string): Place | undefined {
+    const direct = this.getPlace(idOrName);
+    if (direct) return direct;
+    const rows = this.db.prepare("SELECT data FROM places").all() as { data: string }[];
+    const places = rows.map((r) => JSON.parse(r.data) as Place);
+    const needle = idOrName.toLowerCase();
+    const byName = places.find((p) => p.name.toLowerCase() === needle);
+    if (byName) return byName;
+    const tokens = needle.split(/[^a-z0-9]+/).filter(Boolean);
+    let best: { place: Place; score: number } | undefined;
+    for (const p of places) {
+      const hay = `${p.id} ${p.name}`.toLowerCase();
+      // The last token is usually the specific noun ("gallery" in "mine-gallery"), so weight it double.
+      const score = tokens.reduce(
+        (s, t, i) => s + (hay.includes(t) ? (i === tokens.length - 1 ? 2 : 1) : 0),
+        0,
+      );
+      if (score > 0 && (!best || score > best.score)) best = { place: p, score };
+    }
+    return best?.place;
+  }
+
+  listPlaces(): { id: string; name: string }[] {
+    const rows = this.db.prepare("SELECT data FROM places").all() as { data: string }[];
+    return rows.map((r) => {
+      const p = JSON.parse(r.data) as Place;
+      return { id: p.id, name: p.name };
+    });
+  }
+
   savePlace(place: Place): void {
     this.db
       .prepare("INSERT INTO places (id, data) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET data = excluded.data")
