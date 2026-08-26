@@ -1,0 +1,7 @@
+I cling to the Dawnfather's light and fight for another breath.
+I hold on.
+I hold on.
+/sheet
+/scene
+/events
+/quit

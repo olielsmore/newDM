@@ -121,11 +121,40 @@ export interface DamageApplication {
   hpBefore: number;
   hpAfter: number;
   dropped: boolean;
+  /** Death-save failures added because the target was already at 0 HP (PHB: 1, or 2 on a crit). */
+  deathSaveFailuresAdded?: number;
+  deathSaveFailures?: number;
+  dead?: boolean;
+  /** Damage at 0 HP that meets the hp maximum kills outright (PHB massive damage). */
+  instantDeath?: boolean;
 }
 
 /** Mutates the sheet. Returns what happened for the event log. */
-export function applyDamage(sheet: Sheet, amount: number): DamageApplication {
+export function applyDamage(sheet: Sheet, amount: number, opts: { critical?: boolean } = {}): DamageApplication {
   const hpBefore = sheet.hp;
+
+  // Damage while already dying does not lower HP further; it fails death saves.
+  if (hpBefore === 0 && sheet.kind === "pc" && !sheet.conditions.includes("dead")) {
+    const instantDeath = amount >= sheet.maxHp;
+    const added = instantDeath ? 3 : opts.critical ? 2 : 1;
+    sheet.deathSaves.failures += added;
+    sheet.conditions = sheet.conditions.filter((c) => c !== "stable");
+    const dead = sheet.deathSaves.failures >= 3;
+    if (dead && !sheet.conditions.includes("dead")) sheet.conditions.push("dead");
+    return {
+      target: sheet.name,
+      amount,
+      absorbedByTemp: 0,
+      hpBefore,
+      hpAfter: 0,
+      dropped: false,
+      deathSaveFailuresAdded: added,
+      deathSaveFailures: sheet.deathSaves.failures,
+      dead,
+      ...(instantDeath ? { instantDeath } : {}),
+    };
+  }
+
   const absorbedByTemp = Math.min(sheet.tempHp, amount);
   sheet.tempHp -= absorbedByTemp;
   const remaining = amount - absorbedByTemp;

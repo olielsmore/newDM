@@ -179,7 +179,7 @@ export class ToolExecutor {
           let application;
           let extras = {};
           if (res.hit && res.damage) {
-            application = applyDamage(target, Math.max(1, res.damage.total));
+            application = applyDamage(target, Math.max(1, res.damage.total), { critical: res.critical });
             this.db.saveCharacter(target);
             extras = this.afterDamage(target.id, application.amount);
           }

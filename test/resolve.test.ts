@@ -95,6 +95,25 @@ describe("damage and healing", () => {
     expect(f.conditions).toContain("unconscious");
   });
 
+  it("damage at 0 HP fails death saves instead of lowering HP (crit fails two)", () => {
+    const f = fighter({ hp: 0, conditions: ["unconscious"] });
+    const first = applyDamage(f, 5);
+    expect(first.deathSaveFailuresAdded).toBe(1);
+    expect(f.deathSaves.failures).toBe(1);
+    expect(f.hp).toBe(0);
+    const second = applyDamage(f, 5, { critical: true });
+    expect(second.deathSaveFailuresAdded).toBe(2);
+    expect(second.dead).toBe(true);
+    expect(f.conditions).toContain("dead");
+  });
+
+  it("massive damage at 0 HP kills outright", () => {
+    const f = fighter({ hp: 0, conditions: ["unconscious"] });
+    const app = applyDamage(f, 36);
+    expect(app.instantDeath).toBe(true);
+    expect(app.dead).toBe(true);
+  });
+
   it("healing from 0 removes unconscious and caps at max", () => {
     const f = fighter({ hp: 0, conditions: ["unconscious"] });
     applyHealing(f, 100);
