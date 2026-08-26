@@ -9,7 +9,7 @@ import {
   longRest,
 } from "../rules/resolve.js";
 import { roll, d20 } from "../rules/dice.js";
-import { Ability, spellSaveDC } from "../rules/sheet.js";
+import { Ability, SheetSchema, spellSaveDC } from "../rules/sheet.js";
 import {
   startCombat,
   advanceTurn,
@@ -455,6 +455,39 @@ export class ToolExecutor {
             this.db.saveCombat(combat);
           }
           return { id, name: label, hp: sheet.hp, ac: sheet.ac };
+        }
+
+        case "create_npc": {
+          const id = String(args.id).toLowerCase().trim();
+          if (!/^[a-z][a-z0-9-]*$/.test(id)) throw new Error(`NPC id "${id}" must be lowercase letters/digits/dashes`);
+          if (this.db.getCharacter(id)) {
+            throw new Error(`Character id "${id}" already exists. Pick a new unique id — never reuse a person.`);
+          }
+          const name = String(args.name).trim();
+          const description = String(args.description).trim();
+          const hp = args.hp != null ? Math.max(1, Number(args.hp)) : 4;
+          const sheet = SheetSchema.parse({
+            id,
+            name,
+            kind: "npc",
+            level: 1,
+            className: "",
+            race: "human",
+            abilities: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
+            ac: 10,
+            maxHp: hp,
+            hp,
+            attacks: [{ name: "Unarmed", ability: "str", proficient: false, damage: "1d4", damageType: "bludgeoning", range: "melee" }],
+            notes: description,
+          });
+          this.db.saveCharacter(sheet);
+          const scene = this.db.getScene();
+          if (scene && !scene.present.includes(id)) {
+            scene.present.push(id);
+            this.db.saveScene(scene);
+          }
+          this.db.writeCanon(name, description, "npc", this.turn, "dm", false);
+          return { id, name, hp: sheet.hp, addedToScene: Boolean(scene) };
         }
 
         case "start_combat": {

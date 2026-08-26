@@ -196,6 +196,21 @@ export const TOOL_DEFS: ToolDef[] = [
     },
   },
   {
+    name: "create_npc",
+    description:
+      "Mint a NEW named NPC that has no sheet yet (a rescued miner, a passerby, a rival). Creates a simple commoner-grade sheet, adds them to the scene, and writes their existence to canon. NEVER reuse an existing character's id for a different person.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "New unique lowercase id, e.g. 'joren'" },
+        name: { type: "string", description: "Display name, e.g. 'Joren'" },
+        description: { type: "string", description: "One durable sentence about who they are (written to canon)" },
+        hp: { type: "integer", description: "Optional max HP, default 4 (commoner)" },
+      },
+      required: ["id", "name", "description"],
+    },
+  },
+  {
     name: "start_combat",
     description: "Roll initiative for everyone present plus the PC, start turn order. Call when a fight begins.",
     parameters: { type: "object", properties: {}, required: [] },
