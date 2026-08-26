@@ -10,7 +10,7 @@ export interface Violation {
   problem: string;
 }
 
-function numbersFromEvents(events: GameEvent[]): Set<number> {
+export function numbersFromEvents(events: GameEvent[]): Set<number> {
   const nums = new Set<number>();
   const walk = (value: unknown): void => {
     if (typeof value === "number" && Number.isFinite(value)) nums.add(value);

@@ -9,14 +9,34 @@ import { Violation } from "./validator.js";
 export const GROUNDING_SYSTEM_PROMPT = `You check a Dungeon Master's narration against the structured event log and scene state.
 
 Flag only clear contradictions:
-- A named mechanical outcome (hit/miss, success/failure, death, damage) that disagrees with the event log
+- A named mechanical outcome (hit/miss, success/failure, death, damage) that DISAGREES with the event log
 - Arriving at or describing a place that is not the current scene and was not moved to this turn
 - Using a proper name or secret that is not in the known-canon list or this turn's events
-- Inventing a mechanical number not in the event log
+- A mechanical number that appears NOWHERE in the event log
 
-Do NOT flag style, pacing, invented sensory texture, or NPC dialogue that doesn't change facts.
+Rules of restraint — these matter as much as the checks:
+- Any number that appears anywhere in the event log is grounded. Do not flag it.
+- Narrating a miss when the log says hit=false is CORRECT. Narrating a hit when hit=true is CORRECT.
+- Do NOT flag style, pacing, invented sensory texture, or NPC dialogue that doesn't change facts.
+- When unsure, do not flag. A false alarm costs a full rewrite.
+
 Respond with a JSON array of {"claim": "short quote", "problem": "one sentence"}. Empty array if grounded.
 ONLY the JSON array.`;
+
+/**
+ * Raw event JSON is deep and noisy; the checker misreads it. Give it one
+ * compact line per event instead.
+ */
+export function eventDigest(events: GameEvent[]): string {
+  return events
+    .map((e) => {
+      const { args, result } = e.data as { args?: unknown; result?: unknown };
+      const argsStr = JSON.stringify(args ?? {});
+      const resultStr = JSON.stringify(result ?? null);
+      return `${e.kind} args=${argsStr.slice(0, 200)} result=${resultStr.slice(0, 400)}`;
+    })
+    .join("\n");
+}
 
 export async function llmGrounding(
   provider: Provider,
@@ -30,7 +50,7 @@ export async function llmGrounding(
       { role: "system", content: GROUNDING_SYSTEM_PROMPT },
       {
         role: "user",
-        content: `Scene:\n${sceneSummary}\n\nKnown canon:\n${knownCanon || "(none)"}\n\nEvent log:\n${JSON.stringify(events, null, 2)}\n\nNarration:\n${prose}`,
+        content: `Scene:\n${sceneSummary}\n\nKnown canon:\n${knownCanon || "(none)"}\n\nEvent log (this turn):\n${eventDigest(events) || "(no events)"}\n\nNarration:\n${prose}`,
       },
     ],
     temperature: 0,

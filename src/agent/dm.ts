@@ -8,7 +8,7 @@ import { TOOL_DEFS, ToolExecutor } from "../tools/index.js";
 import { Provider, ChatMessage } from "../llm/provider.js";
 import { DM_SYSTEM_PROMPT, OPENING_INSTRUCTION } from "./prompts.js";
 import { buildContextBlock } from "./context.js";
-import { validateNarration, wordBudgetFor, Violation } from "./validator.js";
+import { validateNarration, numbersFromEvents, wordBudgetFor, Violation } from "./validator.js";
 import { llmGrounding } from "./grounding.js";
 import { runScribe, maybeUpdateSummary } from "./scribe.js";
 import { classifyPillar } from "./player-model.js";
@@ -121,7 +121,8 @@ export class DmAgent {
     });
 
     const collectViolations = async (text: string): Promise<Violation[]> => {
-      const deterministic = validateNarration(text, this.db.eventsForTurn(turn), validationCtx());
+      const events = this.db.eventsForTurn(turn);
+      const deterministic = validateNarration(text, events, validationCtx());
       let grounded: Violation[] = [];
       try {
         if (!this.llmGroundingEnabled) return deterministic;
@@ -129,7 +130,7 @@ export class DmAgent {
         grounded = await llmGrounding(
           this.scribeProvider,
           text,
-          this.db.eventsForTurn(turn),
+          events,
           scene ? `${scene.name} (${scene.placeId}) present=${scene.present.join(",")}` : "(no scene)",
           this.db
             .recentCanon(12)
@@ -139,13 +140,21 @@ export class DmAgent {
       } catch {
         grounded = [];
       }
+      // The fuzzy checker's most common false positive is flagging a number
+      // that IS in the event log. Numbers are checked deterministically above,
+      // so any grounding flag whose numbers all trace to events is noise.
+      const eventNumbers = numbersFromEvents(events);
+      grounded = grounded.filter((v) => {
+        const nums = (v.claim.match(/\d+/g) ?? []).map(Number);
+        return nums.length === 0 || nums.some((n) => !eventNumbers.has(n));
+      });
       const seen = new Set(deterministic.map((v) => v.claim + v.problem));
       return [...deterministic, ...grounded.filter((v) => !seen.has(v.claim + v.problem))];
     };
 
     let violations = await collectViolations(prose);
     let corrected = false;
-    if (violations.length > 0) {
+    for (let round = 0; round < 2 && violations.length > 0; round++) {
       hooks.onCorrection?.();
       messages.push({ role: "assistant", content: prose });
       messages.push({
@@ -153,7 +162,8 @@ export class DmAgent {
         content:
           `[SYSTEM CHECK — the player did not see this] Your narration has problems:\n` +
           violations.map((v) => `- "${v.claim}": ${v.problem}`).join("\n") +
-          `\nFix them: call any tools you skipped, then rewrite the narration grounded in the actual tool results. Same events, same voice.`,
+          `\nFix them: call any tools you skipped, then rewrite the narration FROM SCRATCH grounded in the actual tool results. ` +
+          `Every number you narrate must be copied from a tool result this turn — never reuse a number from your draft. Same events, same voice.`,
       });
       let correctedProse = "";
       for (let i = 0; i < 4; i++) {
@@ -167,10 +177,14 @@ export class DmAgent {
         await runTools(retry.toolCalls);
       }
       const retryViolations = await collectViolations(correctedProse);
-      if (correctedProse.trim() && retryViolations.length <= violations.length) {
+      // Accept only strict improvement; a rewrite with as many problems as
+      // the draft is churn, not correction.
+      if (correctedProse.trim() && retryViolations.length < violations.length) {
         prose = correctedProse;
         violations = retryViolations;
         corrected = true;
+      } else {
+        break;
       }
     }
 
