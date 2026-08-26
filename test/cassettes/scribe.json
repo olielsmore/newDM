@@ -1,0 +1,128 @@
+[
+  {
+    "request": {
+      "roles": [
+        "system",
+        "user"
+      ],
+      "lastUser": "Scene:\nThe Drowned Rat (drowned-rat) present=marla,tam,greely\n\nKnown canon:\n[Sera Valen] Emberhollow's own: a cleric of the Dawnfather, back home for the first time in two years, summoned by Father Oswin's letter.\n[Corvin] A peddler whose cart arrived the morning after the collapse. Sells oddments and trades in rumors; wears a miner's salt-charm though he's never swung a pick.\n[Derva Saltbeard] Dwarf forewoman, missing in the mine. She warned Greely for a month that the east gallery was unsound and should stay sealed.\n[Father Oswin] Priest of the Dawnfather who raised Sera Valen after her parents died of saltlung. Sent word asking her to come home the day after the collapse.\n[Alderman Hobb Greely] Owns the mine and most of the town's debts. Nervous, generous with promises, slow with coin.\n[Marla Fenwick] Keeps the Drowned Rat tavern. Missing two fingers on her left hand and tells a different story about it every time. Keeps the miners' corner mug filled until they come home.\n[Tam] The only miner to escape the collapse. Swears he saw 'pale folk with wet mouths' in the dark before the roof came down. The town half-believes him.\n[The collapse] Alderman Greely has posted a reward of 50 gold for anyone who brings the missing miners out, alive or dead.\n[The collapse] Three days ago a section of the saltmine's east workings collapsed. Six miners are missing, including forewoman Derva Saltbeard.\n[Emberhollow] A salt-mining town of about two hundred souls, three days from anywhere, built on the Greely Mineral Concern's saltmine.\n\nEvent log (this turn):\n(no events)\n\nNarration:\nRain freckles the tavern windows and turns the front door black with damp. Inside, the Drowned Rat glows in stubborn little islands: the banked hearth breathing red, three candle stubs along Marla Fenwick’s counter, one nervous flame parked hard by Tam’s elbow. Marla drums her three-fingered hand on the wood and watches the room like it owes her money. In the corner, a full mug waits at the miners’ table, untouched, gathering no dust because someone keeps wiping the ring clean.\n\nFather Oswin’s letter is still creased in your pocket: come home at once. The mine has fallen in. Derva Saltbeard is missing. Tam made it out babbling about pale folk in the dark, and now half the town calls him mad while the other half won’t go near the shaft after sunset.\n\nAcross from you, Alderman Greely mops his temples and forces a smile. “Mistress Valen. A mercy you’re here. We have a situation.” Tam’s candle gutters. Marla snorts through her nose.\n\nYour moment.",
+      "toolNames": []
+    },
+    "response": {
+      "text": "[]",
+      "toolCalls": []
+    }
+  },
+  {
+    "request": {
+      "roles": [
+        "system",
+        "user"
+      ],
+      "lastUser": "Known canon:\n- [Sera Valen] Emberhollow's own: a cleric of the Dawnfather, back home for the first time in two years, summoned by Father Oswin's letter.\n- [Corvin] A peddler whose cart arrived the morning after the collapse. Sells oddments and trades in rumors; wears a miner's salt-charm though he's never swung a pick.\n- [Derva Saltbeard] Dwarf forewoman, missing in the mine. She warned Greely for a month that the east gallery was unsound and should stay sealed.\n- [Father Oswin] Priest of the Dawnfather who raised Sera Valen after her parents died of saltlung. Sent word asking her to come home the day after the collapse.\n- [Alderman Hobb Greely] Owns the mine and most of the town's debts. Nervous, generous with promises, slow with coin.\n- [Marla Fenwick] Keeps the Drowned Rat tavern. Missing two fingers on her left hand and tells a different story about it every time. Keeps the miners' corner mug filled until they come home.\n- [Tam] The only miner to escape the collapse. Swears he saw 'pale folk with wet mouths' in the dark before the roof came down. The town half-believes him.\n- [The collapse] Alderman Greely has posted a reward of 50 gold for anyone who brings the missing miners out, alive or dead.\n- [The collapse] Three days ago a section of the saltmine's east workings collapsed. Six miners are missing, including forewoman Derva Saltbeard.\n- [Emberhollow] A salt-mining town of about two hundred souls, three days from anywhere, built on the Greely Mineral Concern's saltmine.\n\nPlayer: \n\nDM narration:\nRain freckles the tavern windows and turns the front door black with damp. Inside, the Drowned Rat glows in stubborn little islands: the banked hearth breathing red, three candle stubs along Marla Fenwick’s counter, one nervous flame parked hard by Tam’s elbow. Marla drums her three-fingered hand on the wood and watches the room like it owes her money. In the corner, a full mug waits at the miners’ table, untouched, gathering no dust because someone keeps wiping the ring clean.\n\nFather Oswin’s letter is still creased in your pocket: come home at once. The mine has fallen in. Derva Saltbeard is missing. Tam made it out babbling about pale folk in the dark, and now half the town calls him mad while the other half won’t go near the shaft after sunset.\n\nAcross from you, Alderman Greely mops his temples and forces a smile. “Mistress Valen. A mercy you’re here. We have a situation.” Tam’s candle gutters. Marla snorts through her nose.\n\nYour moment.",
+      "toolNames": []
+    },
+    "response": {
+      "text": "[\n  {\n    \"subject\": \"The Drowned Rat\",\n    \"fact\": \"The tavern has a banked hearth, three candle stubs on Marla Fenwick’s counter, and a full mug kept waiting at the miners’ table.\",\n    \"tags\": \"location,establishment,atmosphere\"\n  },\n  {\n    \"subject\": \"Marla Fenwick\",\n    \"fact\": \"Marla has three fingers on her hand and watches the room with a hard, suspicious stare.\",\n    \"tags\": \"npc,appearance,behavior\"\n  },\n  {\n    \"subject\": \"Father Oswin's letter\",\n    \"fact\": \"The letter in Sera Valen’s pocket says to come home at once and mentions that the mine has fallen in, Derva Saltbeard is missing, and Tam saw pale folk in the dark.\",\n    \"tags\": \"item,message,plot\"\n  },\n  {\n    \"subject\": \"Tam\",\n    \"fact\": \"Tam’s account of pale folk in the dark has made half the town think he is mad and the other half avoid the shaft after sunset.\",\n    \"tags\": \"npc,reputation,world-detail\"\n  },\n  {\n    \"subject\": \"Alderman Hobb Greely\",\n    \"fact\": \"Greely addresses Sera Valen as 'Mistress Valen' and says her arrival is a mercy because they have a situation.\",\n    \"tags\": \"npc,dialogue,relationship\"\n  }\n]",
+      "toolCalls": []
+    }
+  },
+  {
+    "request": {
+      "roles": [
+        "system",
+        "user"
+      ],
+      "lastUser": "(session opening)",
+      "toolNames": []
+    },
+    "response": {
+      "text": "exploration",
+      "toolCalls": []
+    }
+  },
+  {
+    "request": {
+      "roles": [
+        "system",
+        "user"
+      ],
+      "lastUser": "Scene:\nThe Drowned Rat (drowned-rat) present=marla,tam,greely\n\nKnown canon:\n[Alderman Hobb Greely] Greely addresses Sera Valen as 'Mistress Valen' and says her arrival is a mercy because they have a situation.\n[Tam] Tam’s account of pale folk in the dark has made half the town think he is mad and the other half avoid the shaft after sunset.\n[Father Oswin's letter] The letter in Sera Valen’s pocket says to come home at once and mentions that the mine has fallen in, Derva Saltbeard is missing, and Tam saw pale folk in the dark.\n[Marla Fenwick] Marla has three fingers on her hand and watches the room with a hard, suspicious stare.\n[The Drowned Rat] The tavern has a banked hearth, three candle stubs on Marla Fenwick’s counter, and a full mug kept waiting at the miners’ table.\n[Sera Valen] Emberhollow's own: a cleric of the Dawnfather, back home for the first time in two years, summoned by Father Oswin's letter.\n[Corvin] A peddler whose cart arrived the morning after the collapse. Sells oddments and trades in rumors; wears a miner's salt-charm though he's never swung a pick.\n[Derva Saltbeard] Dwarf forewoman, missing in the mine. She warned Greely for a month that the east gallery was unsound and should stay sealed.\n[Father Oswin] Priest of the Dawnfather who raised Sera Valen after her parents died of saltlung. Sent word asking her to come home the day after the collapse.\n[Alderman Hobb Greely] Owns the mine and most of the town's debts. Nervous, generous with promises, slow with coin.\n[Marla Fenwick] Keeps the Drowned Rat tavern. Missing two fingers on her left hand and tells a different story about it every time. Keeps the miners' corner mug filled until they come home.\n[Tam] The only miner to escape the collapse. Swears he saw 'pale folk with wet mouths' in the dark before the roof came down. The town half-believes him.\n\nEvent log (this turn):\nget_character args={\"id\":\"marla\"} result={\"id\":\"marla\",\"name\":\"Marla Fenwick\",\"kind\":\"npc\",\"level\":1,\"className\":\"\",\"race\":\"human\",\"abilities\":{\"str\":10,\"dex\":10,\"con\":10,\"int\":10,\"wis\":10,\"cha\":10},\"proficientSkills\":[],\"proficientSaves\":[],\"ac\":10,\"maxHp\":4,\"hp\":4,\"tempHp\":0,\"speed\":30,\"attacks\":[{\"name\":\"Unarmed\",\"ability\":\"str\",\"proficient\":false,\"damage\":\"1d4\",\"damageType\":\"bludgeoning\",\"range\":\"melee\"}],\"spellSlots\":{},\"spellsKnown\nget_scene args={} result={\"placeId\":\"drowned-rat\",\"name\":\"The Drowned Rat\",\"description\":\"Emberhollow's only tavern: low beams, salt-bleached floorboards, a hearth that never quite dies.\",\"present\":[{\"id\":\"marla\",\"name\":\"Marla Fenwick\",\"kind\":\"npc\",\"hp\":4,\"maxHp\":4,\"conditions\":[],\"concentrating\":null},{\"id\":\"tam\",\"name\":\"Tam\",\"kind\":\"npc\",\"hp\":4,\"maxHp\":4,\"conditions\":[],\"concentrating\":null},{\"id\":\"greely\",\"name\":\"Alder\n\nNarration:\nMarla’s three fingers tap once, twice, then stop. She drags a rag over a clean patch of counter anyway, buying herself half a breath.\n\n“What’s been happening?” She gives you a look sharp enough to skin fish. “Mine fell in. Town started whispering. Same as any place when the ground eats men.” Her eyes flick toward the full mug in the corner, then away. “Greely posts a reward, promises plenty, pays nothing yet. Tam came up white as tallow, talking about pale things in the dark. Since then? Fewer songs. More locks on doors.”\n\nGreely clears his throat at once. “Now see here—”\n\nMarla cuts across him without looking. “You asked me.”\n\nTam’s candle spits wax. “I saw them.”",
+      "toolNames": []
+    },
+    "response": {
+      "text": "[]",
+      "toolCalls": []
+    }
+  },
+  {
+    "request": {
+      "roles": [
+        "system",
+        "user"
+      ],
+      "lastUser": "Known canon:\n- [Alderman Hobb Greely] Greely addresses Sera Valen as 'Mistress Valen' and says her arrival is a mercy because they have a situation.\n- [Tam] Tam’s account of pale folk in the dark has made half the town think he is mad and the other half avoid the shaft after sunset.\n- [Father Oswin's letter] The letter in Sera Valen’s pocket says to come home at once and mentions that the mine has fallen in, Derva Saltbeard is missing, and Tam saw pale folk in the dark.\n- [Marla Fenwick] Marla has three fingers on her hand and watches the room with a hard, suspicious stare.\n- [The Drowned Rat] The tavern has a banked hearth, three candle stubs on Marla Fenwick’s counter, and a full mug kept waiting at the miners’ table.\n- [Sera Valen] Emberhollow's own: a cleric of the Dawnfather, back home for the first time in two years, summoned by Father Oswin's letter.\n- [Corvin] A peddler whose cart arrived the morning after the collapse. Sells oddments and trades in rumors; wears a miner's salt-charm though he's never swung a pick.\n- [Derva Saltbeard] Dwarf forewoman, missing in the mine. She warned Greely for a month that the east gallery was unsound and should stay sealed.\n- [Father Oswin] Priest of the Dawnfather who raised Sera Valen after her parents died of saltlung. Sent word asking her to come home the day after the collapse.\n- [Alderman Hobb Greely] Owns the mine and most of the town's debts. Nervous, generous with promises, slow with coin.\n- [Marla Fenwick] Keeps the Drowned Rat tavern. Missing two fingers on her left hand and tells a different story about it every time. Keeps the miners' corner mug filled until they come home.\n- [Tam] The only miner to escape the collapse. Swears he saw 'pale folk with wet mouths' in the dark before the roof came down. The town half-believes him.\n- [The collapse] Alderman Greely has posted a reward of 50 gold for anyone who brings the missing miners out, alive or dead.\n- [The collapse] Three days ago a section of the saltmine's east workings collapsed. Six miners are missing, including forewoman Derva Saltbeard.\n- [Emberhollow] A salt-mining town of about two hundred souls, three days from anywhere, built on the Greely Mineral Concern's saltmine.\n\nPlayer: I ask Marla what has been happening in Emberhollow since I left.\n\nDM narration:\nMarla’s three fingers tap once, twice, then stop. She drags a rag over a clean patch of counter anyway, buying herself half a breath.\n\n“What’s been happening?” She gives you a look sharp enough to skin fish. “Mine fell in. Town started whispering. Same as any place when the ground eats men.” Her eyes flick toward the full mug in the corner, then away. “Greely posts a reward, promises plenty, pays nothing yet. Tam came up white as tallow, talking about pale things in the dark. Since then? Fewer songs. More locks on doors.”\n\nGreely clears his throat at once. “Now see here—”\n\nMarla cuts across him without looking. “You asked me.”\n\nTam’s candle spits wax. “I saw them.”",
+      "toolNames": []
+    },
+    "response": {
+      "text": "[\n  {\n    \"subject\": \"Marla Fenwick\",\n    \"fact\": \"Marla says the mine fell in and the town began whispering afterward, with fewer songs and more locks on doors.\",\n    \"tags\": \"npc,world-state,emberhollow\"\n  },\n  {\n    \"subject\": \"Alderman Hobb Greely\",\n    \"fact\": \"Greely has posted a reward and made promises about the collapse, but Marla says he has not paid anything yet.\",\n    \"tags\": \"npc,promise,reward,collapse\"\n  },\n  {\n    \"subject\": \"Tam\",\n    \"fact\": \"Tam came up from the mine white as tallow and has been talking about pale things in the dark.\",\n    \"tags\": \"npc,collapse,rumor\"\n  }\n]",
+      "toolCalls": []
+    }
+  },
+  {
+    "request": {
+      "roles": [
+        "system",
+        "user"
+      ],
+      "lastUser": "I ask Marla what has been happening in Emberhollow since I left.",
+      "toolNames": []
+    },
+    "response": {
+      "text": "social",
+      "toolCalls": []
+    }
+  },
+  {
+    "request": {
+      "roles": [
+        "system",
+        "user"
+      ],
+      "lastUser": "Scene:\nThe Drowned Rat (drowned-rat) present=marla,tam,greely\n\nKnown canon:\n[Tam] Tam came up from the mine white as tallow and has been talking about pale things in the dark.\n[Alderman Hobb Greely] Greely has posted a reward and made promises about the collapse, but Marla says he has not paid anything yet.\n[Marla Fenwick] Marla says the mine fell in and the town began whispering afterward, with fewer songs and more locks on doors.\n[Alderman Hobb Greely] Greely addresses Sera Valen as 'Mistress Valen' and says her arrival is a mercy because they have a situation.\n[Tam] Tam’s account of pale folk in the dark has made half the town think he is mad and the other half avoid the shaft after sunset.\n[Father Oswin's letter] The letter in Sera Valen’s pocket says to come home at once and mentions that the mine has fallen in, Derva Saltbeard is missing, and Tam saw pale folk in the dark.\n[Marla Fenwick] Marla has three fingers on her hand and watches the room with a hard, suspicious stare.\n[The Drowned Rat] The tavern has a banked hearth, three candle stubs on Marla Fenwick’s counter, and a full mug kept waiting at the miners’ table.\n[Sera Valen] Emberhollow's own: a cleric of the Dawnfather, back home for the first time in two years, summoned by Father Oswin's letter.\n[Corvin] A peddler whose cart arrived the morning after the collapse. Sells oddments and trades in rumors; wears a miner's salt-charm though he's never swung a pick.\n[Derva Saltbeard] Dwarf forewoman, missing in the mine. She warned Greely for a month that the east gallery was unsound and should stay sealed.\n[Father Oswin] Priest of the Dawnfather who raised Sera Valen after her parents died of saltlung. Sent word asking her to come home the day after the collapse.\n\nEvent log (this turn):\nget_character args={\"id\":\"sera\"} result={\"id\":\"sera\",\"name\":\"Sera Valen\",\"kind\":\"pc\",\"level\":2,\"className\":\"Cleric (Light)\",\"race\":\"human\",\"abilities\":{\"str\":14,\"dex\":10,\"con\":14,\"int\":10,\"wis\":16,\"cha\":12},\"proficientSkills\":[\"insight\",\"religion\",\"medicine\",\"persuasion\"],\"proficientSaves\":[\"wis\",\"cha\"],\"ac\":15,\"maxHp\":17,\"hp\":17,\"tempHp\":0,\"speed\":30,\"attacks\":[{\"name\":\"Mace\",\"ability\":\"str\",\"proficient\":true,\"damage\":\"1d6\",\"damageType\nability_check args={\"characterId\":\"sera\",\"ability\":\"wis\",\"skill\":\"insight\",\"dc\":15,\"reason\":\"Read Alderman Hobb Greely's face and manner for lies or concealment while pressing him about the mine\"} result={\"kind\":\"check\",\"character\":\"Sera Valen\",\"ability\":\"wis\",\"skill\":\"insight\",\"dc\":15,\"roll\":{\"rolls\":[18],\"kept\":18,\"modifier\":5,\"total\":23,\"natural20\":false,\"natural1\":false},\"outcome\":\"success\",\"reason\":\"Read Alderman Hobb Greely's face and manner for lies or concealment while pressing him about the mine\"}\n\nNarration:\nGreely wets his lips before you finish the question. Not fear of the mine — fear of the question. His smile comes late and sits wrong on his face, like it was borrowed.\n\n“My dear Mistress Valen, a regrettable collapse, nothing more exotic than bad stone and worse luck.” He spreads his hands, but his thumb worries one cufflink so hard it nearly twists loose. “We are, ah, doing all that can be done.”\n\nA 23 is more than enough. He is hiding something specific, and when you say mine, his eyes flick — not down, not away, but sideways, toward Tam. Measuring whether the boy will speak. He is not lying about the collapse itself. He is lying by omission, and he came to that lie prepared.\n\nMarla gives a dry little laugh. “Hear that? Man’s rehearsed.” Greely’s jaw tightens. “Mind your trade, woman.”",
+      "toolNames": []
+    },
+    "response": {
+      "text": "[]",
+      "toolCalls": []
+    }
+  },
+  {
+    "request": {
+      "roles": [
+        "system",
+        "user"
+      ],
+      "lastUser": "Known canon:\n- [Tam] Tam came up from the mine white as tallow and has been talking about pale things in the dark.\n- [Alderman Hobb Greely] Greely has posted a reward and made promises about the collapse, but Marla says he has not paid anything yet.\n- [Marla Fenwick] Marla says the mine fell in and the town began whispering afterward, with fewer songs and more locks on doors.\n- [Alderman Hobb Greely] Greely addresses Sera Valen as 'Mistress Valen' and says her arrival is a mercy because they have a situation.\n- [Tam] Tam’s account of pale folk in the dark has made half the town think he is mad and the other half avoid the shaft after sunset.\n- [Father Oswin's letter] The letter in Sera Valen’s pocket says to come home at once and mentions that the mine has fallen in, Derva Saltbeard is missing, and Tam saw pale folk in the dark.\n- [Marla Fenwick] Marla has three fingers on her hand and watches the room with a hard, suspicious stare.\n- [The Drowned Rat] The tavern has a banked hearth, three candle stubs on Marla Fenwick’s counter, and a full mug kept waiting at the miners’ table.\n- [Sera Valen] Emberhollow's own: a cleric of the Dawnfather, back home for the first time in two years, summoned by Father Oswin's letter.\n- [Corvin] A peddler whose cart arrived the morning after the collapse. Sells oddments and trades in rumors; wears a miner's salt-charm though he's never swung a pick.\n- [Derva Saltbeard] Dwarf forewoman, missing in the mine. She warned Greely for a month that the east gallery was unsound and should stay sealed.\n- [Father Oswin] Priest of the Dawnfather who raised Sera Valen after her parents died of saltlung. Sent word asking her to come home the day after the collapse.\n- [Alderman Hobb Greely] Owns the mine and most of the town's debts. Nervous, generous with promises, slow with coin.\n- [Marla Fenwick] Keeps the Drowned Rat tavern. Missing two fingers on her left hand and tells a different story about it every time. Keeps the miners' corner mug filled until they come home.\n- [Tam] The only miner to escape the collapse. Swears he saw 'pale folk with wet mouths' in the dark before the roof came down. The town half-believes him.\n- [The collapse] Alderman Greely has posted a reward of 50 gold for anyone who brings the missing miners out, alive or dead.\n- [The collapse] Three days ago a section of the saltmine's east workings collapsed. Six miners are missing, including forewoman Derva Saltbeard.\n- [Emberhollow] A salt-mining town of about two hundred souls, three days from anywhere, built on the Greely Mineral Concern's saltmine.\n\nPlayer: I press Greely about the mine and watch his face closely for lies.\n\nDM narration:\nGreely wets his lips before you finish the question. Not fear of the mine — fear of the question. His smile comes late and sits wrong on his face, like it was borrowed.\n\n“My dear Mistress Valen, a regrettable collapse, nothing more exotic than bad stone and worse luck.” He spreads his hands, but his thumb worries one cufflink so hard it nearly twists loose. “We are, ah, doing all that can be done.”\n\nA 23 is more than enough. He is hiding something specific, and when you say mine, his eyes flick — not down, not away, but sideways, toward Tam. Measuring whether the boy will speak. He is not lying about the collapse itself. He is lying by omission, and he came to that lie prepared.\n\nMarla gives a dry little laugh. “Hear that? Man’s rehearsed.” Greely’s jaw tightens. “Mind your trade, woman.”",
+      "toolNames": []
+    },
+    "response": {
+      "text": "[\n  {\n    \"subject\": \"Alderman Hobb Greely\",\n    \"fact\": \"Greely is hiding something specific about the mine and was prepared to lie by omission when questioned.\",\n    \"tags\": \"npc,secrets,lie,collapse\"\n  },\n  {\n    \"subject\": \"Alderman Hobb Greely\",\n    \"fact\": \"When pressed about the mine, Greely's eyes flick toward Tam as if measuring whether Tam will speak.\",\n    \"tags\": \"npc,relationship,attention,Tam\"\n  },\n  {\n    \"subject\": \"Alderman Hobb Greely\",\n    \"fact\": \"Greely's smile looks forced and out of place, as if borrowed, and he nervously worries a cufflink with his thumb.\",\n    \"tags\": \"npc,behavior,nervousness\"\n  },\n  {\n    \"subject\": \"Marla Fenwick\",\n    \"fact\": \"Marla openly mocks Greely by saying he sounds rehearsed.\",\n    \"tags\": \"npc,relationship,conflict,Greely\"\n  }\n]",
+      "toolCalls": []
+    }
+  },
+  {
+    "request": {
+      "roles": [
+        "system",
+        "user"
+      ],
+      "lastUser": "I press Greely about the mine and watch his face closely for lies.",
+      "toolNames": []
+    },
+    "response": {
+      "text": "social",
+      "toolCalls": []
+    }
+  }
+]

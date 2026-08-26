@@ -1,0 +1,21 @@
+I take in the room for a moment, then ask Marla straight: what really happened at the mine, and what does she make of Tam's pale folk?
+I sit down next to Tam, gentle. I tell him I believe him, and ask him to tell me exactly what he saw down there.
+I cross to Greely's table, sit, and press him about the east gallery. I want the truth, and I am watching every twitch of his face.
+I tell Greely I am going down there tonight, and he had better hope I find those miners alive. Then I head out, up the mine road to the warrens entrance, and light a torch.
+I step past the warning rope and move into the first gallery, slow and quiet, listening for anything in the dark.
+I follow the cart rails toward the east workings, torch high, and call out: "Derva! Sound off if you can hear me!"
+I cast Guiding Bolt at the closest ghoul.
+I keep my shield tight and swing my mace at the nearest one.
+I press the attack - mace again, driving it back toward the water.
+I keep fighting with everything I have.
+I finish the last one off.
+/sheet
+If I am hurt, I drink my Potion of Healing. Then I call to Derva behind the arch: the pale things are down, it is safe to come out.
+I ask Derva what really happened down here - I tell her Greely gave me nothing but sweat and excuses.
+I ask about the others. How many still live, and can they walk?
+I lead Derva and the survivors back up through the gallery, out the entrance, and down the mine road to town.
+I bring everyone into the Drowned Rat, plant Derva in front of the room, and confront Greely with the truth about the east gallery in front of everyone.
+I demand he pay the reward he posted, and that the east gallery be sealed for good - properly this time.
+I raise a mug to the ones who did not come back, and let Marla fill the miners' corner mug one more time.
+/sheet
+/quit

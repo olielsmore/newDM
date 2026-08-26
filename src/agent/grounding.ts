@@ -14,6 +14,7 @@ Flag only clear contradictions:
 - Arriving at or describing a place that is not the current scene and was not moved to this turn
 - Using a proper name or secret that is not in the known-canon list or this turn's events
 - A mechanical number that appears NOWHERE in the event log
+- A fourth-wall break: narration that mentions tools, ids, engines, the system, retries, or the DM's own process instead of staying in the fiction
 
 Rules of restraint — these matter as much as the checks:
 - Any number that appears anywhere in the event log is grounded. Do not flag it.

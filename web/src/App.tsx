@@ -12,23 +12,79 @@ import {
 
 type Tab = "canon" | "events" | "combat" | "metrics";
 
-interface ChatLine {
-  role: "player" | "dm" | "system";
-  text: string;
-}
-
 interface ToolLine {
   name: string;
   args: unknown;
   result: unknown;
 }
 
+interface ChatLine {
+  role: "player" | "dm" | "system";
+  text: string;
+  tools?: ToolLine[];
+}
+
+/** One-line human summary of a tool call for the chat chips. */
+function toolChip(t: ToolLine): string {
+  const a = (t.args ?? {}) as Record<string, unknown>;
+  const r = (t.result ?? {}) as Record<string, unknown>;
+  switch (t.name) {
+    case "ability_check": {
+      const roll = (r.roll as { total?: number })?.total;
+      return `${a.ability}${a.skill ? `/${a.skill}` : ""} DC ${a.dc} → ${roll ?? "?"} (${r.outcome ?? "?"})`;
+    }
+    case "saving_throw": {
+      const roll = (r.roll as { total?: number })?.total;
+      return `${a.ability} save DC ${a.dc} → ${roll ?? "?"} (${r.success ? "success" : "fail"})`;
+    }
+    case "attack": {
+      const roll = (r.attackRoll as { total?: number })?.total;
+      const dmg = (r.damage as { total?: number; type?: string }) ?? undefined;
+      return `${a.attackerId} → ${a.targetId}: ${roll ?? "?"} vs AC ${r.targetAc ?? "?"}${
+        r.hit ? ` — hit, ${dmg?.total ?? "?"} ${dmg?.type ?? ""}` : " — miss"
+      }`;
+    }
+    case "cast_spell":
+      return `${a.casterId} casts ${a.spell}${a.targetId ? ` at ${a.targetId}` : ""}`;
+    case "death_save":
+      return `death save → ${r.roll ?? "?"} (${r.successes ?? 0}✓ ${r.failures ?? 0}✗)`;
+    case "roll":
+      return `${a.dice} → ${(r as { total?: number }).total ?? "?"}`;
+    case "move_scene":
+      return a.placeId ? `travel → ${a.placeId}` : `scene updated`;
+    case "start_combat":
+      return `roll initiative!`;
+    case "next_combat_turn":
+      return `next turn → ${r.currentId ?? "?"}${r.wrapped ? ` (round ${r.round})` : ""}`;
+    case "spawn_monster":
+      return `${a.label ?? a.monster} appears`;
+    case "reveal_secret":
+      return `secret revealed: ${a.subject}`;
+    default:
+      return t.name.replace(/_/g, " ");
+  }
+}
+
+const DICE_TOOLS = new Set([
+  "roll",
+  "ability_check",
+  "saving_throw",
+  "attack",
+  "cast_spell",
+  "death_save",
+  "start_combat",
+  "next_combat_turn",
+  "spawn_monster",
+  "move_scene",
+  "reveal_secret",
+]);
+
 export function App() {
   const [sheet, setSheet] = useState<Sheet | null>(null);
   const [scene, setScene] = useState<ScenePayload | null>(null);
   const [canon, setCanon] = useState<CanonFact[]>([]);
   const [events, setEvents] = useState<GameEvent[]>([]);
-  const [turns, setTurns] = useState<TurnRow[]>([]);
+  const [turns, setTurns] = useState<TurnRow[] | null>(null);
   const [metrics, setMetrics] = useState<Record<string, number> | null>(null);
   const [tab, setTab] = useState<Tab>("canon");
   const [input, setInput] = useState("");
@@ -37,6 +93,7 @@ export function App() {
   const [tools, setTools] = useState<ToolLine[]>([]);
   const [chat, setChat] = useState<ChatLine[]>([]);
   const bottom = useRef<HTMLDivElement>(null);
+  const autoStarted = useRef(false);
 
   const refresh = useCallback(async () => {
     const [s, sc, c, e, t, m] = await Promise.all([
@@ -73,35 +130,55 @@ export function App() {
     bottom.current?.scrollIntoView({ behavior: "smooth" });
   }, [chat, live]);
 
+  const runTurn = useCallback(
+    async (text: string) => {
+      setBusy(true);
+      setLive("");
+      setTools([]);
+      if (text) setChat((c) => [...c, { role: "player", text }]);
+      let acc = "";
+      const turnTools: ToolLine[] = [];
+      try {
+        await playTurn(text, {
+          onText: (d) => {
+            acc += d;
+            setLive(acc);
+          },
+          onTool: (name, args, result) => {
+            turnTools.push({ name, args, result });
+            setTools([...turnTools]);
+          },
+          onCorrection: () => setChat((c) => [...c, { role: "system", text: "Narration corrected against the event log." }]),
+          onDone: () => {
+            setChat((c) => [...c, { role: "dm", text: acc, tools: turnTools.filter((t) => DICE_TOOLS.has(t.name)) }]);
+            setLive("");
+          },
+        });
+        await refresh();
+      } catch (err) {
+        setChat((c) => [...c, { role: "system", text: err instanceof Error ? err.message : String(err) }]);
+      } finally {
+        setBusy(false);
+      }
+    },
+    [refresh],
+  );
+
+  // A fresh save opens itself: the DM sets the scene without waiting for input.
+  useEffect(() => {
+    if (autoStarted.current || busy || turns === null) return;
+    if (turns.length === 0 && chat.length === 0) {
+      autoStarted.current = true;
+      void runTurn("");
+    }
+  }, [turns, chat.length, busy, runTurn]);
+
   async function submit(ev?: FormEvent) {
     ev?.preventDefault();
     if (busy) return;
     const text = input.trim();
     setInput("");
-    setBusy(true);
-    setLive("");
-    setTools([]);
-    if (text) setChat((c) => [...c, { role: "player", text }]);
-    let acc = "";
-    try {
-      await playTurn(text, {
-        onText: (d) => {
-          acc += d;
-          setLive(acc);
-        },
-        onTool: (name, args, result) => setTools((t) => [...t, { name, args, result }]),
-        onCorrection: () => setChat((c) => [...c, { role: "system", text: "Narration corrected against the event log." }]),
-        onDone: () => {
-          setChat((c) => [...c, { role: "dm", text: acc }]);
-          setLive("");
-        },
-      });
-      await refresh();
-    } catch (err) {
-      setChat((c) => [...c, { role: "system", text: err instanceof Error ? err.message : String(err) }]);
-    } finally {
-      setBusy(false);
-    }
+    await runTurn(text);
   }
 
   async function onReset() {
@@ -110,6 +187,8 @@ export function App() {
     setChat([]);
     setTools([]);
     setLive("");
+    setTurns(null);
+    autoStarted.current = false; // fresh save re-opens itself
     await refresh();
   }
 
@@ -163,6 +242,15 @@ export function App() {
               <p className="text-[10px] uppercase tracking-widest text-muted mb-1">
                 {line.role === "player" ? "You" : line.role === "dm" ? "Sable" : "Table"}
               </p>
+              {line.tools && line.tools.length > 0 && (
+                <div className="flex flex-wrap gap-1 mb-2 max-w-[40rem]">
+                  {line.tools.map((t, j) => (
+                    <span key={j} className="text-[11px] font-mono bg-ink border border-rule text-moss px-2 py-0.5">
+                      🎲 {toolChip(t)}
+                    </span>
+                  ))}
+                </div>
+              )}
               <div
                 className={
                   line.role === "player"
@@ -176,10 +264,21 @@ export function App() {
               </div>
             </article>
           ))}
-          {live && (
+          {(live || (busy && tools.length > 0)) && (
             <article>
               <p className="text-[10px] uppercase tracking-widest text-muted mb-1">Sable</p>
-              <div className="max-w-[40rem] leading-relaxed whitespace-pre-wrap">{live}</div>
+              {busy && tools.filter((t) => DICE_TOOLS.has(t.name)).length > 0 && (
+                <div className="flex flex-wrap gap-1 mb-2 max-w-[40rem]">
+                  {tools
+                    .filter((t) => DICE_TOOLS.has(t.name))
+                    .map((t, j) => (
+                      <span key={j} className="text-[11px] font-mono bg-ink border border-rule text-moss px-2 py-0.5">
+                        🎲 {toolChip(t)}
+                      </span>
+                    ))}
+                </div>
+              )}
+              {live && <div className="max-w-[40rem] leading-relaxed whitespace-pre-wrap">{live}</div>}
             </article>
           )}
           <div ref={bottom} />
@@ -261,7 +360,7 @@ export function App() {
                 </div>
               ))}
               <p className="col-span-2 text-muted text-xs">
-                Turns in this save: {turns.length}. Empty opening is turn 1.
+                Turns in this save: {turns?.length ?? 0}. Empty opening is turn 1.
               </p>
             </dl>
           )}

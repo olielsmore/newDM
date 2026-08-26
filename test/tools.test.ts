@@ -99,6 +99,29 @@ describe("tools", () => {
     expect(goblin.hp).toBeLessThan(7);
   });
 
+  it("paralyzed combatants cannot act and are hit at advantage", () => {
+    const tools = new ToolExecutor(db, 1);
+    tools.execute("spawn_monster", { monster: "goblin" });
+    tools.execute("start_combat", {});
+    const sera = db.getCharacter("sera")!;
+    sera.conditions.push("Paralyzed");
+    db.saveCharacter(sera);
+
+    expect(() => tools.execute("attack", { attackerId: "sera", targetId: "goblin-1" })).toThrow(/paralyzed/i);
+    expect(() => tools.execute("cast_spell", { casterId: "sera", spell: "Guiding Bolt", targetId: "goblin-1" })).toThrow(
+      /paralyzed/i,
+    );
+
+    const scene = tools.execute("get_scene", {}) as { combat: { currentId: string } };
+    if (scene.combat.currentId !== "goblin-1") tools.execute("next_combat_turn", {});
+    const hit = tools.execute("attack", { attackerId: "goblin-1", targetId: "sera" }) as {
+      targetHelpless?: boolean;
+      advantage?: boolean;
+    };
+    expect(hit.targetHelpless).toBe(true);
+    expect(hit.advantage).toBe(true);
+  });
+
   it("apply_effect spends slots and refuses when empty", () => {
     const tools = new ToolExecutor(db, 1);
     for (let i = 0; i < 3; i++) {

@@ -1,0 +1,233 @@
+[
+  {
+    "request": {
+      "roles": [
+        "system",
+        "system",
+        "user"
+      ],
+      "lastUser": "This is the opening of the session. Set the scene with the current location, weave in the quest hook from canon, and give the player something to react to. 100-160 words, then hand them the moment.",
+      "toolNames": [
+        "roll",
+        "get_character",
+        "ability_check",
+        "saving_throw",
+        "attack",
+        "cast_spell",
+        "apply_effect",
+        "get_scene",
+        "move_scene",
+        "lookup",
+        "find_monsters",
+        "find_items",
+        "suggest_encounter",
+        "spawn_monster",
+        "start_combat",
+        "end_combat",
+        "next_combat_turn",
+        "death_save",
+        "canon_search",
+        "canon_write",
+        "reveal_secret"
+      ]
+    },
+    "response": {
+      "text": "Rain freckles the tavern windows and turns the front door black with damp. Inside, the Drowned Rat glows in stubborn little islands: the banked hearth breathing red, three candle stubs along Marla Fenwick’s counter, one nervous flame parked hard by Tam’s elbow. Marla drums her three-fingered hand on the wood and watches the room like it owes her money. In the corner, a full mug waits at the miners’ table, untouched, gathering no dust because someone keeps wiping the ring clean.\n\nFather Oswin’s letter is still creased in your pocket: come home at once. The mine has fallen in. Derva Saltbeard is missing. Tam made it out babbling about pale folk in the dark, and now half the town calls him mad while the other half won’t go near the shaft after sunset.\n\nAcross from you, Alderman Greely mops his temples and forces a smile. “Mistress Valen. A mercy you’re here. We have a situation.” Tam’s candle gutters. Marla snorts through her nose.\n\nYour moment.",
+      "toolCalls": []
+    }
+  },
+  {
+    "request": {
+      "roles": [
+        "system",
+        "system",
+        "assistant",
+        "user"
+      ],
+      "lastUser": "I ask Marla what has been happening in Emberhollow since I left.",
+      "toolNames": [
+        "roll",
+        "get_character",
+        "ability_check",
+        "saving_throw",
+        "attack",
+        "cast_spell",
+        "apply_effect",
+        "get_scene",
+        "move_scene",
+        "lookup",
+        "find_monsters",
+        "find_items",
+        "suggest_encounter",
+        "spawn_monster",
+        "start_combat",
+        "end_combat",
+        "next_combat_turn",
+        "death_save",
+        "canon_search",
+        "canon_write",
+        "reveal_secret"
+      ]
+    },
+    "response": {
+      "text": "",
+      "toolCalls": [
+        {
+          "id": "call_zTbJFDlbOY2saJCGwGUcEM7I",
+          "name": "get_character",
+          "args": {
+            "id": "marla"
+          }
+        },
+        {
+          "id": "call_we4qEqoE58bWerP9hmcRPMJy",
+          "name": "get_scene",
+          "args": {}
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "roles": [
+        "system",
+        "system",
+        "assistant",
+        "user",
+        "assistant",
+        "tool",
+        "tool"
+      ],
+      "lastUser": "I ask Marla what has been happening in Emberhollow since I left.",
+      "toolNames": [
+        "roll",
+        "get_character",
+        "ability_check",
+        "saving_throw",
+        "attack",
+        "cast_spell",
+        "apply_effect",
+        "get_scene",
+        "move_scene",
+        "lookup",
+        "find_monsters",
+        "find_items",
+        "suggest_encounter",
+        "spawn_monster",
+        "start_combat",
+        "end_combat",
+        "next_combat_turn",
+        "death_save",
+        "canon_search",
+        "canon_write",
+        "reveal_secret"
+      ]
+    },
+    "response": {
+      "text": "Marla’s three fingers tap once, twice, then stop. She drags a rag over a clean patch of counter anyway, buying herself half a breath.\n\n“What’s been happening?” She gives you a look sharp enough to skin fish. “Mine fell in. Town started whispering. Same as any place when the ground eats men.” Her eyes flick toward the full mug in the corner, then away. “Greely posts a reward, promises plenty, pays nothing yet. Tam came up white as tallow, talking about pale things in the dark. Since then? Fewer songs. More locks on doors.”\n\nGreely clears his throat at once. “Now see here—”\n\nMarla cuts across him without looking. “You asked me.”\n\nTam’s candle spits wax. “I saw them.”",
+      "toolCalls": []
+    }
+  },
+  {
+    "request": {
+      "roles": [
+        "system",
+        "system",
+        "assistant",
+        "user",
+        "assistant",
+        "user"
+      ],
+      "lastUser": "I press Greely about the mine and watch his face closely for lies.",
+      "toolNames": [
+        "roll",
+        "get_character",
+        "ability_check",
+        "saving_throw",
+        "attack",
+        "cast_spell",
+        "apply_effect",
+        "get_scene",
+        "move_scene",
+        "lookup",
+        "find_monsters",
+        "find_items",
+        "suggest_encounter",
+        "spawn_monster",
+        "start_combat",
+        "end_combat",
+        "next_combat_turn",
+        "death_save",
+        "canon_search",
+        "canon_write",
+        "reveal_secret"
+      ]
+    },
+    "response": {
+      "text": "",
+      "toolCalls": [
+        {
+          "id": "call_CyJWnBRm4EbKt7w0HxvClhEY",
+          "name": "get_character",
+          "args": {
+            "id": "sera"
+          }
+        },
+        {
+          "id": "call_lJXyGlp9Yo0Bvy83HLqSDQMj",
+          "name": "ability_check",
+          "args": {
+            "characterId": "sera",
+            "ability": "wis",
+            "skill": "insight",
+            "dc": 15,
+            "reason": "Read Alderman Hobb Greely's face and manner for lies or concealment while pressing him about the mine"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "roles": [
+        "system",
+        "system",
+        "assistant",
+        "user",
+        "assistant",
+        "user",
+        "assistant",
+        "tool",
+        "tool"
+      ],
+      "lastUser": "I press Greely about the mine and watch his face closely for lies.",
+      "toolNames": [
+        "roll",
+        "get_character",
+        "ability_check",
+        "saving_throw",
+        "attack",
+        "cast_spell",
+        "apply_effect",
+        "get_scene",
+        "move_scene",
+        "lookup",
+        "find_monsters",
+        "find_items",
+        "suggest_encounter",
+        "spawn_monster",
+        "start_combat",
+        "end_combat",
+        "next_combat_turn",
+        "death_save",
+        "canon_search",
+        "canon_write",
+        "reveal_secret"
+      ]
+    },
+    "response": {
+      "text": "Greely wets his lips before you finish the question. Not fear of the mine — fear of the question. His smile comes late and sits wrong on his face, like it was borrowed.\n\n“My dear Mistress Valen, a regrettable collapse, nothing more exotic than bad stone and worse luck.” He spreads his hands, but his thumb worries one cufflink so hard it nearly twists loose. “We are, ah, doing all that can be done.”\n\nA 23 is more than enough. He is hiding something specific, and when you say mine, his eyes flick — not down, not away, but sideways, toward Tam. Measuring whether the boy will speak. He is not lying about the collapse itself. He is lying by omission, and he came to that lie prepared.\n\nMarla gives a dry little laugh. “Hear that? Man’s rehearsed.” Greely’s jaw tightens. “Mind your trade, woman.”",
+      "toolCalls": []
+    }
+  }
+]

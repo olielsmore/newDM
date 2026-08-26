@@ -9,12 +9,13 @@ import {
   longRest,
 } from "../rules/resolve.js";
 import { roll, d20 } from "../rules/dice.js";
-import { Ability, spellSaveDC } from "../rules/sheet.js";
+import { Ability, SheetSchema, spellSaveDC } from "../rules/sheet.js";
 import {
   startCombat,
   advanceTurn,
   consumeEconomy,
   currentCombatant,
+  addCombatant,
   removeCombatant,
   expireConditions,
   concentrationDc,
@@ -93,6 +94,17 @@ export class ToolExecutor {
     );
   }
 
+  private static INCAPACITATING = ["paralyzed", "stunned", "unconscious", "incapacitated", "petrified"];
+
+  private requireCanAct(actor: { id: string; name: string; conditions: string[] }) {
+    const blocking = actor.conditions.find((c) =>
+      ToolExecutor.INCAPACITATING.includes(c.toLowerCase()),
+    );
+    if (blocking) {
+      throw new Error(`${actor.name} is ${blocking} and cannot take actions. Narrate the helplessness; do not resolve an action for them.`);
+    }
+  }
+
   private consumeIfCombat(id: string, slot: EconomySlot) {
     const combat = this.db.getCombat();
     if (!combat?.active) return;
@@ -142,7 +154,12 @@ export class ToolExecutor {
           const attacker = this.character(args.attackerId as string, false);
           const target = this.character(args.targetId as string, false);
           this.requireCombatForHostility(attacker.kind, target.kind);
+          this.requireCanAct(attacker);
           this.consumeIfCombat(attacker.id, "action");
+          // A paralyzed or unconscious defender cannot dodge (assume melee range).
+          const targetHelpless = target.conditions.some((c) =>
+            ToolExecutor.INCAPACITATING.includes(c.toLowerCase()),
+          );
           const attackName = args.attackName as string | undefined;
           const attack = attackName
             ? attacker.attacks.find((a) => a.name.toLowerCase() === attackName.toLowerCase())
@@ -156,17 +173,17 @@ export class ToolExecutor {
             );
           }
           const res = resolveAttack(rng, attacker, target, attack, {
-            advantage: Boolean(args.advantage),
+            advantage: Boolean(args.advantage) || targetHelpless,
             disadvantage: Boolean(args.disadvantage),
           });
           let application;
           let extras = {};
           if (res.hit && res.damage) {
-            application = applyDamage(target, Math.max(1, res.damage.total));
+            application = applyDamage(target, Math.max(1, res.damage.total), { critical: res.critical });
             this.db.saveCharacter(target);
             extras = this.afterDamage(target.id, application.amount);
           }
-          return { ...res, applied: application, ...extras };
+          return { ...res, ...(targetHelpless ? { targetHelpless: true, advantage: true } : {}), applied: application, ...extras };
         }
 
         case "cast_spell": {
@@ -185,6 +202,7 @@ export class ToolExecutor {
           if (dealsDamage && target && target.id !== caster.id) {
             this.requireCombatForHostility(caster.kind, target.kind);
           }
+          this.requireCanAct(caster);
           this.consumeIfCombat(caster.id, definition.economy);
           const combat = this.db.getCombat();
           const result = castSpell(rng, caster, target, definition, combat?.round);
@@ -304,6 +322,18 @@ export class ToolExecutor {
             const current = this.db.getPlace(scene.placeId);
             const legal = current?.exits ?? [];
             if (wanted !== scene.placeId && !legal.some((e) => e.to === wanted)) {
+              const asCharacter = (() => {
+                try {
+                  return this.db.resolveCharacter(wanted);
+                } catch {
+                  return undefined;
+                }
+              })();
+              if (asCharacter) {
+                throw new Error(
+                  `"${wanted}" is a character (${asCharacter.name}), not a place. To bring them into this scene, call move_scene with addPresent: ["${asCharacter.id}"] and no placeId.`,
+                );
+              }
               const listed = legal.map((e) => `${e.to} (${e.description})`).join("; ") || "(none)";
               throw new Error(
                 `Cannot move to "${wanted}" from ${scene.placeId}. Legal exits: ${listed}. Use an exact id from this list.`,
@@ -326,11 +356,23 @@ export class ToolExecutor {
             this.db.saveScene(scene);
             return { moved: true, scene, sensoryDetail: sensory, exits: place.exits, tags: place.tags, visitNumber: visits + 1 };
           }
-          for (const id of (args.addPresent as string[]) ?? []) if (!scene.present.includes(id)) scene.present.push(id);
+          const joined: { id: string; initiative: number }[] = [];
+          for (const id of (args.addPresent as string[]) ?? []) {
+            const sheet = this.db.resolveCharacter(id);
+            if (!scene.present.includes(sheet.id)) scene.present.push(sheet.id);
+            // Anyone entering a live fight rolls initiative and joins it.
+            const combat = this.db.getCombat();
+            if (combat?.active && !combat.order.some((o) => o.id === sheet.id)) {
+              const init = d20(rng, { modifier: Math.floor((sheet.abilities.dex - 10) / 2) }).total;
+              addCombatant(combat, sheet.id, init);
+              this.db.saveCombat(combat);
+              joined.push({ id: sheet.id, initiative: init });
+            }
+          }
           for (const id of (args.removePresent as string[]) ?? []) scene.present = scene.present.filter((p) => p !== id);
           if (args.time) scene.time = String(args.time);
           this.db.saveScene(scene);
-          return { moved: false, scene };
+          return { moved: false, scene, ...(joined.length ? { joinedCombat: joined } : {}) };
         }
 
         case "lookup": {
@@ -409,12 +451,43 @@ export class ToolExecutor {
           const combat = this.db.getCombat();
           if (combat?.active) {
             const init = d20(rng, { modifier: Math.floor((sheet.abilities.dex - 10) / 2) }).total;
-            combat.order.push({ id, initiative: init });
-            combat.order.sort((a, b) => b.initiative - a.initiative);
-            combat.economy[id] = { action: true, bonus: true, movement: true, reaction: true };
+            addCombatant(combat, id, init);
             this.db.saveCombat(combat);
           }
           return { id, name: label, hp: sheet.hp, ac: sheet.ac };
+        }
+
+        case "create_npc": {
+          const id = String(args.id).toLowerCase().trim();
+          if (!/^[a-z][a-z0-9-]*$/.test(id)) throw new Error(`NPC id "${id}" must be lowercase letters/digits/dashes`);
+          if (this.db.getCharacter(id)) {
+            throw new Error(`Character id "${id}" already exists. Pick a new unique id — never reuse a person.`);
+          }
+          const name = String(args.name).trim();
+          const description = String(args.description).trim();
+          const hp = args.hp != null ? Math.max(1, Number(args.hp)) : 4;
+          const sheet = SheetSchema.parse({
+            id,
+            name,
+            kind: "npc",
+            level: 1,
+            className: "",
+            race: "human",
+            abilities: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
+            ac: 10,
+            maxHp: hp,
+            hp,
+            attacks: [{ name: "Unarmed", ability: "str", proficient: false, damage: "1d4", damageType: "bludgeoning", range: "melee" }],
+            notes: description,
+          });
+          this.db.saveCharacter(sheet);
+          const scene = this.db.getScene();
+          if (scene && !scene.present.includes(id)) {
+            scene.present.push(id);
+            this.db.saveScene(scene);
+          }
+          this.db.writeCanon(name, description, "npc", this.turn, "dm", false);
+          return { id, name, hp: sheet.hp, addedToScene: Boolean(scene) };
         }
 
         case "start_combat": {

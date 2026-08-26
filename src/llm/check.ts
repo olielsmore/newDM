@@ -4,8 +4,8 @@
  */
 import { resolveApiKey } from "./provider.js";
 
-const DM_MODEL = process.env.DM_MODEL ?? "gpt-4o";
-const SCRIBE_MODEL = process.env.SCRIBE_MODEL ?? "gpt-4o-mini";
+const DM_MODEL = process.env.DM_MODEL ?? "gpt-5.4";
+const SCRIBE_MODEL = process.env.SCRIBE_MODEL ?? "gpt-5.4-mini";
 const BASE = process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1";
 
 async function openai(path: string, body?: unknown): Promise<{ ok: boolean; status: number; json: unknown }> {
@@ -21,10 +21,11 @@ async function openai(path: string, body?: unknown): Promise<{ ok: boolean; stat
 }
 
 async function smoke(model: string, withTool: boolean): Promise<void> {
+  const modern = /^(gpt-5|o\d)/.test(model);
   const body: Record<string, unknown> = {
     model,
     messages: [{ role: "user", content: "Reply with the single word OK" }],
-    max_tokens: 8,
+    [modern ? "max_completion_tokens" : "max_tokens"]: 64,
     temperature: 0,
   };
   if (withTool) {

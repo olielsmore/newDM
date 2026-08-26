@@ -56,12 +56,14 @@ export class OpenAiProvider implements Provider {
   ) {}
 
   async chat(opts: ChatOptions): Promise<ChatResult> {
+    // gpt-5.x and o-series reject max_tokens in favor of max_completion_tokens.
+    const modern = /^(gpt-5|o\d)/.test(this.model);
     const body: Record<string, unknown> = {
       model: this.model,
       messages: opts.messages,
       stream: true,
       temperature: opts.temperature ?? 0.9,
-      max_tokens: opts.maxTokens ?? 1200,
+      [modern ? "max_completion_tokens" : "max_tokens"]: opts.maxTokens ?? 1200,
     };
     if (opts.tools?.length) {
       body.tools = opts.tools.map((t) => ({
@@ -95,8 +97,17 @@ export class OpenAiProvider implements Provider {
     const decoder = new TextDecoder();
     let buffer = "";
     for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
+      let chunk: { done: boolean; value?: Uint8Array };
+      try {
+        chunk = await reader.read();
+      } catch (err) {
+        // Stream dropped mid-response. Tools may already have run, so a
+        // partial narration beats losing the turn; an empty one is a failure.
+        if (text.trim()) break;
+        throw err;
+      }
+      const { done, value } = chunk;
+      if (done || !value) break;
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split("\n");
       buffer = lines.pop() ?? "";
@@ -203,12 +214,12 @@ export function providerFromEnv(model?: string): Provider {
     );
   }
   const baseUrl = process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1";
-  return new OpenAiProvider(key, model ?? process.env.DM_MODEL ?? "gpt-4o", baseUrl);
+  return new OpenAiProvider(key, model ?? process.env.DM_MODEL ?? "gpt-5.4", baseUrl);
 }
 
 export function scribeProviderFromEnv(): Provider {
   const key = resolveApiKey();
   if (!key) throw new Error("No LLM API key found for scribe");
   const baseUrl = process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1";
-  return new OpenAiProvider(key, process.env.SCRIBE_MODEL ?? "gpt-4o-mini", baseUrl);
+  return new OpenAiProvider(key, process.env.SCRIBE_MODEL ?? "gpt-5.4-mini", baseUrl);
 }
