@@ -6,15 +6,24 @@
   "scripts": {
     "play": "tsx src/cli.ts",
     "seed": "tsx src/fixture/seed.ts",
+    "serve": "tsx src/server/index.ts",
+    "ingest": "tsx src/content/ingest.ts",
+    "models:check": "tsx src/llm/check.ts",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "dev": "tsx src/server/index.ts"
   },
   "packageManager": "pnpm@10.33.3",
   "pnpm": {
-    "onlyBuiltDependencies": ["better-sqlite3", "esbuild"]
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "esbuild"
+    ]
   },
   "dependencies": {
+    "@hono/node-server": "^2.1.1",
     "better-sqlite3": "^13.0.3",
+    "hono": "^4.13.4",
     "zod": "^4.4.3"
   },
   "devDependencies": {

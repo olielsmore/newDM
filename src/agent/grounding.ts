@@ -1,0 +1,49 @@
+/**
+ * LLM grounding pass. Catches contradictions the regexes cannot:
+ * inverted outcomes, wrong names, fiction that moved without tools.
+ */
+import { Provider } from "../llm/provider.js";
+import { GameEvent } from "../state/db.js";
+import { Violation } from "./validator.js";
+
+export const GROUNDING_SYSTEM_PROMPT = `You check a Dungeon Master's narration against the structured event log and scene state.
+
+Flag only clear contradictions:
+- A named mechanical outcome (hit/miss, success/failure, death, damage) that disagrees with the event log
+- Arriving at or describing a place that is not the current scene and was not moved to this turn
+- Using a proper name or secret that is not in the known-canon list or this turn's events
+- Inventing a mechanical number not in the event log
+
+Do NOT flag style, pacing, invented sensory texture, or NPC dialogue that doesn't change facts.
+Respond with a JSON array of {"claim": "short quote", "problem": "one sentence"}. Empty array if grounded.
+ONLY the JSON array.`;
+
+export async function llmGrounding(
+  provider: Provider,
+  prose: string,
+  events: GameEvent[],
+  sceneSummary: string,
+  knownCanon: string,
+): Promise<Violation[]> {
+  const result = await provider.chat({
+    messages: [
+      { role: "system", content: GROUNDING_SYSTEM_PROMPT },
+      {
+        role: "user",
+        content: `Scene:\n${sceneSummary}\n\nKnown canon:\n${knownCanon || "(none)"}\n\nEvent log:\n${JSON.stringify(events, null, 2)}\n\nNarration:\n${prose}`,
+      },
+    ],
+    temperature: 0,
+    maxTokens: 400,
+  });
+  try {
+    const match = result.text.match(/\[[\s\S]*\]/);
+    if (!match) return [];
+    const parsed = JSON.parse(match[0]) as { claim?: string; problem?: string }[];
+    return parsed
+      .filter((v) => v.claim && v.problem)
+      .map((v) => ({ claim: v.claim!, problem: v.problem! }));
+  } catch {
+    return [];
+  }
+}

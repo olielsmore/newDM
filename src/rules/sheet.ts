@@ -63,6 +63,9 @@ export const SheetSchema = z.object({
   spellsKnown: z.array(z.string()).default([]),
   inventory: z.array(z.object({ name: z.string(), qty: z.number().int().default(1) })).default([]),
   conditions: z.array(z.string()).default([]),
+  /** condition name -> combat round it expires at (engine-owned, never the model's memory) */
+  conditionExpiries: z.record(z.string(), z.number().int()).default({}),
+  concentrating: z.object({ spell: z.string() }).nullable().default(null),
   deathSaves: z.object({ successes: z.number().int(), failures: z.number().int() }).default({ successes: 0, failures: 0 }),
   notes: z.string().default(""),
 });

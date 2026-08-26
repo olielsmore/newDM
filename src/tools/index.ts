@@ -1,8 +1,3 @@
-/**
- * The DM agent's toolbox. These are the ONLY ways the model can learn
- * mechanical state or make anything happen. Every execution is appended
- * to the event log, which the grounding validator checks prose against.
- */
 import { GameDb } from "../state/db.js";
 import {
   resolveCheck,
@@ -13,185 +8,26 @@ import {
   spendSlot,
   longRest,
 } from "../rules/resolve.js";
-import { roll } from "../rules/dice.js";
-import { Ability, spellSaveDC, spellAttackModifier } from "../rules/sheet.js";
+import { roll, d20 } from "../rules/dice.js";
+import { Ability, spellSaveDC } from "../rules/sheet.js";
+import {
+  startCombat,
+  advanceTurn,
+  consumeEconomy,
+  currentCombatant,
+  removeCombatant,
+  expireConditions,
+  concentrationDc,
+  applyDeathSave,
+  EconomySlot,
+} from "../rules/combat.js";
+import { castSpell, parseSpellDefinition } from "../rules/spells.js";
+import { composeEncounters, EncounterDifficulty, partyXpBudget, xpForCr } from "../rules/encounter.js";
+import { MonsterRecord, ItemRecord, SpellRecord } from "../content/types.js";
+import { TOOL_DEFS } from "./defs.js";
 
-export interface ToolDef {
-  name: string;
-  description: string;
-  parameters: Record<string, unknown>;
-}
-
-const ABILITIES = ["str", "dex", "con", "int", "wis", "cha"];
-
-export const TOOL_DEFS: ToolDef[] = [
-  {
-    name: "roll",
-    description:
-      "Roll dice for anything not covered by a more specific tool (random tables, damage from hazards, NPC checks without sheets). Never invent dice results — always call this.",
-    parameters: {
-      type: "object",
-      properties: {
-        dice: { type: "string", description: "Dice expression, e.g. '2d6+3' or '1d20'" },
-        reason: { type: "string", description: "What this roll is for" },
-      },
-      required: ["dice", "reason"],
-    },
-  },
-  {
-    name: "get_character",
-    description:
-      "Get the full current sheet for a character, NPC, or monster (HP, AC, slots, conditions, inventory). Query this rather than remembering values.",
-    parameters: {
-      type: "object",
-      properties: { id: { type: "string", description: "Character id or name. Omit for the player character." } },
-      required: [],
-    },
-  },
-  {
-    name: "ability_check",
-    description:
-      "Resolve an ability check or skill check against a DC. The engine computes modifiers and rolls. Use DC 5 trivial / 10 easy / 15 medium / 20 hard / 25 very hard. Only call when the outcome is uncertain AND failure is interesting — trivial actions just succeed.",
-    parameters: {
-      type: "object",
-      properties: {
-        characterId: { type: "string", description: "Who is making the check (id or name)" },
-        ability: { type: "string", enum: ABILITIES },
-        skill: { type: "string", description: "Skill name if applicable, e.g. 'stealth', 'persuasion'" },
-        dc: { type: "integer" },
-        advantage: { type: "boolean" },
-        disadvantage: { type: "boolean" },
-        reason: { type: "string", description: "One-line justification for the DC chosen" },
-      },
-      required: ["characterId", "ability", "dc", "reason"],
-    },
-  },
-  {
-    name: "saving_throw",
-    description: "Resolve a saving throw for a character or monster against a DC.",
-    parameters: {
-      type: "object",
-      properties: {
-        characterId: { type: "string" },
-        ability: { type: "string", enum: ABILITIES },
-        dc: { type: "integer" },
-        advantage: { type: "boolean" },
-        disadvantage: { type: "boolean" },
-        reason: { type: "string" },
-      },
-      required: ["characterId", "ability", "dc", "reason"],
-    },
-  },
-  {
-    name: "attack",
-    description:
-      "Resolve a weapon or natural attack: to-hit roll vs AC, damage on hit, damage automatically applied to the target's HP. Use for both PC and NPC/monster attacks.",
-    parameters: {
-      type: "object",
-      properties: {
-        attackerId: { type: "string" },
-        targetId: { type: "string" },
-        attackName: { type: "string", description: "Which of the attacker's attacks. Omit to use the first." },
-        advantage: { type: "boolean" },
-        disadvantage: { type: "boolean" },
-      },
-      required: ["attackerId", "targetId"],
-    },
-  },
-  {
-    name: "apply_effect",
-    description:
-      "Apply a mechanical effect outside of the attack tool: damage (traps, spells, falls), healing, gaining/losing conditions, spending a spell slot, or a long rest.",
-    parameters: {
-      type: "object",
-      properties: {
-        targetId: { type: "string" },
-        effect: {
-          type: "string",
-          enum: ["damage", "heal", "add_condition", "remove_condition", "spend_slot", "long_rest", "add_item", "remove_item"],
-        },
-        amount: { type: "integer", description: "For damage/heal/spend_slot(level)/item qty" },
-        detail: { type: "string", description: "Condition name, item name, or damage type" },
-      },
-      required: ["targetId", "effect"],
-    },
-  },
-  {
-    name: "get_scene",
-    description: "Get the current scene: location, who is present, features, time. Query before narrating a place.",
-    parameters: { type: "object", properties: {}, required: [] },
-  },
-  {
-    name: "move_scene",
-    description:
-      "Move the party to a different place (by place id from the current place's exits), or update who is present in the current scene.",
-    parameters: {
-      type: "object",
-      properties: {
-        placeId: { type: "string", description: "Destination place id. Omit to stay and only update presence." },
-        addPresent: { type: "array", items: { type: "string" }, description: "Character/monster ids arriving" },
-        removePresent: { type: "array", items: { type: "string" }, description: "Ids leaving or dead" },
-        time: { type: "string", description: "New in-fiction time, if it changed" },
-      },
-      required: [],
-    },
-  },
-  {
-    name: "lookup",
-    description: "Look up 5e content: a monster statblock, spell, or item. Use before improvising rules for one.",
-    parameters: {
-      type: "object",
-      properties: {
-        kind: { type: "string", enum: ["monster", "spell", "item"] },
-        name: { type: "string" },
-      },
-      required: ["kind", "name"],
-    },
-  },
-  {
-    name: "spawn_monster",
-    description:
-      "Instantiate a monster from the content database into the scene as a combatant with its own HP (e.g. 'goblin' -> 'goblin-1'). Returns the new combatant id.",
-    parameters: {
-      type: "object",
-      properties: {
-        monster: { type: "string", description: "Monster name from content, e.g. 'goblin'" },
-        label: { type: "string", description: "Optional distinguishing label, e.g. 'scarred goblin'" },
-      },
-      required: ["monster"],
-    },
-  },
-  {
-    name: "canon_search",
-    description:
-      "Search established world facts (names, history, promises, prior events). Use whenever you are about to state a fact you are not certain of — never guess.",
-    parameters: {
-      type: "object",
-      properties: { query: { type: "string" } },
-      required: ["query"],
-    },
-  },
-  {
-    name: "canon_write",
-    description:
-      "Record a new durable fact you just established in narration (a name you coined, a detail, a promise an NPC made). Keeps the world consistent.",
-    parameters: {
-      type: "object",
-      properties: {
-        subject: { type: "string", description: "Entity the fact is about, e.g. 'Marla Fenwick'" },
-        fact: { type: "string", description: "One sentence, e.g. 'Runs the Drowned Rat tavern; missing two fingers on her left hand.'" },
-        tags: { type: "string", description: "Comma-separated tags, e.g. 'npc,tavern'" },
-      },
-      required: ["subject", "fact"],
-    },
-  },
-];
-
-export interface ToolCallRecord {
-  name: string;
-  args: Record<string, unknown>;
-  result: unknown;
-}
+export { TOOL_DEFS };
+export type { ToolDef, ToolCallRecord } from "./types.js";
 
 export class ToolExecutor {
   constructor(
@@ -205,68 +41,145 @@ export class ToolExecutor {
     return result;
   }
 
-  private requireCharacter(idOrName: string | undefined, fallbackToPc = true) {
+  private character(idOrName: string | undefined, fallbackToPc = true) {
     if (!idOrName && fallbackToPc) return this.db.getPlayerCharacter();
-    const sheet = idOrName ? this.db.findCharacter(idOrName) : undefined;
-    if (!sheet) throw new Error(`Unknown character: "${idOrName}". Use get_scene to see who is present.`);
-    return sheet;
+    if (!idOrName) throw new Error("character id is required");
+    return this.db.resolveCharacter(idOrName);
+  }
+
+  private afterDamage(targetId: string, amount: number) {
+    const target = this.db.getCharacter(targetId);
+    if (!target) return {};
+    const extras: Record<string, unknown> = {};
+    if (target.concentrating) {
+      const rng = this.db.getRng();
+      const dc = concentrationDc(amount);
+      const save = resolveSave(rng, target, "con", dc);
+      this.db.saveRng(rng);
+      extras.concentration = { spell: target.concentrating.spell, concentrationDc: dc, save };
+      if (!save.success) {
+        target.concentrating = null;
+        extras.concentrationDropped = true;
+      }
+      this.db.saveCharacter(target);
+    }
+    if (target.hp <= 0 && target.kind === "monster") {
+      extras.died = true;
+      const scene = this.db.getScene();
+      if (scene) {
+        scene.present = scene.present.filter((id) => id !== target.id);
+        this.db.saveScene(scene);
+      }
+      const combat = this.db.getCombat();
+      if (combat?.active) {
+        removeCombatant(combat, target.id);
+        this.db.saveCombat(combat);
+      }
+    }
+    return extras;
+  }
+
+  private consumeIfCombat(id: string, slot: EconomySlot) {
+    const combat = this.db.getCombat();
+    if (!combat?.active) return;
+    const current = currentCombatant(combat);
+    if (slot !== "reaction" && current !== id) {
+      throw new Error(`It is ${current}'s turn, not ${id}'s. Resolve the current combatant or call next_combat_turn.`);
+    }
+    const used = consumeEconomy(combat, id, slot);
+    if (!used.ok) throw new Error(used.error);
+    this.db.saveCombat(combat);
   }
 
   private dispatch(name: string, args: Record<string, unknown>): unknown {
     const rng = this.db.getRng();
     try {
       switch (name) {
-        case "roll": {
-          const r = roll(rng, String(args.dice));
-          return { ...r, reason: args.reason };
-        }
+        case "roll":
+          return { ...roll(rng, String(args.dice)), reason: args.reason };
 
-        case "get_character": {
-          const sheet = this.requireCharacter(args.id as string | undefined);
-          return sheet;
-        }
+        case "get_character":
+          return this.character(args.id as string | undefined);
 
         case "ability_check": {
-          const sheet = this.requireCharacter(args.characterId as string, false);
-          const res = resolveCheck(rng, sheet, args.ability as Ability, Number(args.dc), {
-            skill: args.skill as string | undefined,
-            advantage: Boolean(args.advantage),
-            disadvantage: Boolean(args.disadvantage),
-          });
-          return { ...res, reason: args.reason };
+          const sheet = this.character(args.characterId as string, false);
+          return {
+            ...resolveCheck(rng, sheet, args.ability as Ability, Number(args.dc), {
+              skill: args.skill as string | undefined,
+              advantage: Boolean(args.advantage),
+              disadvantage: Boolean(args.disadvantage),
+            }),
+            reason: args.reason,
+          };
         }
 
         case "saving_throw": {
-          const sheet = this.requireCharacter(args.characterId as string, false);
-          const res = resolveSave(rng, sheet, args.ability as Ability, Number(args.dc), {
-            advantage: Boolean(args.advantage),
-            disadvantage: Boolean(args.disadvantage),
-          });
-          return { ...res, reason: args.reason };
+          const sheet = this.character(args.characterId as string, false);
+          return {
+            ...resolveSave(rng, sheet, args.ability as Ability, Number(args.dc), {
+              advantage: Boolean(args.advantage),
+              disadvantage: Boolean(args.disadvantage),
+            }),
+            reason: args.reason,
+          };
         }
 
         case "attack": {
-          const attacker = this.requireCharacter(args.attackerId as string, false);
-          const target = this.requireCharacter(args.targetId as string, false);
+          const attacker = this.character(args.attackerId as string, false);
+          const target = this.character(args.targetId as string, false);
+          this.consumeIfCombat(attacker.id, "action");
           const attackName = args.attackName as string | undefined;
           const attack = attackName
-            ? attacker.attacks.find((a) => a.name.toLowerCase() === attackName.toLowerCase()) ?? attacker.attacks[0]
+            ? attacker.attacks.find((a) => a.name.toLowerCase() === attackName.toLowerCase())
             : attacker.attacks[0];
-          if (!attack) throw new Error(`${attacker.name} has no attacks defined`);
+          if (!attack) {
+            const names = attacker.attacks.map((a) => a.name).join(", ") || "(none)";
+            throw new Error(
+              attackName
+                ? `${attacker.name} has no attack named "${attackName}". Known: ${names}`
+                : `${attacker.name} has no attacks defined`,
+            );
+          }
           const res = resolveAttack(rng, attacker, target, attack, {
             advantage: Boolean(args.advantage),
             disadvantage: Boolean(args.disadvantage),
           });
           let application;
+          let extras = {};
           if (res.hit && res.damage) {
             application = applyDamage(target, Math.max(1, res.damage.total));
             this.db.saveCharacter(target);
+            extras = this.afterDamage(target.id, application.amount);
           }
-          return { ...res, applied: application };
+          return { ...res, applied: application, ...extras };
+        }
+
+        case "cast_spell": {
+          const caster = this.character(args.casterId as string, false);
+          const rec = this.db.getContent("spell", String(args.spell)) as SpellRecord | undefined;
+          if (!rec) throw new Error(`No spell "${args.spell}" in content. Use lookup or the caster's spellsKnown.`);
+          const definition = rec.definition ? parseSpellDefinition(rec.definition) : null;
+          if (!definition) throw new Error(`Spell "${rec.name}" has no structured definition yet — do not improvise its mechanics.`);
+          this.consumeIfCombat(caster.id, definition.economy);
+          const targetId = args.targetId ? String(args.targetId) : undefined;
+          const target = targetId
+            ? this.character(targetId, false).id === caster.id
+              ? caster
+              : this.character(targetId, false)
+            : undefined;
+          const combat = this.db.getCombat();
+          const result = castSpell(rng, caster, target, definition, combat?.round);
+          this.db.saveCharacter(caster);
+          if (target) {
+            this.db.saveCharacter(target);
+            const dmg = JSON.stringify(result.applied).match(/"amount":(\d+)/);
+            if (dmg) Object.assign(result, this.afterDamage(target.id, Number(dmg[1])));
+          }
+          return { ...result, spellSaveDC: spellSaveDC(caster) };
         }
 
         case "apply_effect": {
-          const target = this.requireCharacter(args.targetId as string, false);
+          const target = this.character(args.targetId as string, false);
           const effect = String(args.effect);
           const amount = args.amount != null ? Number(args.amount) : undefined;
           const detail = args.detail as string | undefined;
@@ -274,16 +187,24 @@ export class ToolExecutor {
           switch (effect) {
             case "damage":
               result = applyDamage(target, Math.max(0, amount ?? 0));
-              break;
+              this.db.saveCharacter(target);
+              return { target: target.name, effect, ...(result as object), ...this.afterDamage(target.id, amount ?? 0) };
             case "heal":
               result = applyHealing(target, Math.max(0, amount ?? 0));
               break;
-            case "add_condition":
-              if (detail && !target.conditions.includes(detail)) target.conditions.push(detail);
-              result = { conditions: target.conditions };
+            case "add_condition": {
+              if (!detail) throw new Error("add_condition requires detail (condition name)");
+              if (!target.conditions.includes(detail)) target.conditions.push(detail);
+              const combat = this.db.getCombat();
+              if (args.expiresInRounds != null && combat?.active) {
+                target.conditionExpiries[detail] = combat.round + Number(args.expiresInRounds);
+              }
+              result = { conditions: target.conditions, expiresAtRound: target.conditionExpiries[detail] };
               break;
+            }
             case "remove_condition":
               target.conditions = target.conditions.filter((c) => c !== detail);
+              if (detail) delete target.conditionExpiries[detail];
               result = { conditions: target.conditions };
               break;
             case "spend_slot":
@@ -293,13 +214,25 @@ export class ToolExecutor {
               break;
             case "long_rest":
               longRest(target);
+              target.concentrating = null;
+              target.conditionExpiries = {};
               result = { hp: target.hp, maxHp: target.maxHp, slots: target.spellSlots };
               break;
             case "add_item": {
-              const existing = target.inventory.find((i) => i.name.toLowerCase() === detail?.toLowerCase());
+              if (!detail) throw new Error("add_item requires detail (item id or exact name)");
+              const known = this.db.getContent("item", detail) as ItemRecord | undefined;
+              const canon = this.db.searchCanon(detail, 5);
+              const customOk = canon.some((c) => c.fact.toLowerCase().includes(detail.toLowerCase()) || c.subject.toLowerCase() === detail.toLowerCase());
+              if (!known && !customOk) {
+                throw new Error(
+                  `Unknown item "${detail}". Grant only content items (find_items / lookup) or an item you have already written to canon.`,
+                );
+              }
+              const itemName = known?.name ?? detail;
+              const existing = target.inventory.find((i) => i.name.toLowerCase() === itemName.toLowerCase());
               if (existing) existing.qty += amount ?? 1;
-              else if (detail) target.inventory.push({ name: detail, qty: amount ?? 1 });
-              result = { inventory: target.inventory };
+              else target.inventory.push({ name: itemName, qty: amount ?? 1 });
+              result = { inventory: target.inventory, fromContent: Boolean(known) };
               break;
             }
             case "remove_item": {
@@ -321,40 +254,55 @@ export class ToolExecutor {
           const scene = this.db.getScene();
           if (!scene) return { error: "No scene set" };
           const present = scene.present.map((id) => {
-            const c = this.db.findCharacter(id);
-            return c ? { id: c.id, name: c.name, kind: c.kind, hp: c.hp, maxHp: c.maxHp, conditions: c.conditions } : { id };
+            const c = this.db.getCharacter(id);
+            return c
+              ? { id: c.id, name: c.name, kind: c.kind, hp: c.hp, maxHp: c.maxHp, conditions: c.conditions, concentrating: c.concentrating }
+              : { id };
           });
           const place = this.db.getPlace(scene.placeId);
-          return { ...scene, present, exits: place?.exits ?? [] };
+          const combat = this.db.getCombat();
+          return {
+            ...scene,
+            tags: place?.tags ?? [],
+            present,
+            exits: place?.exits ?? [],
+            combat: combat?.active
+              ? {
+                  round: combat.round,
+                  currentId: currentCombatant(combat),
+                  order: combat.order,
+                  economy: combat.economy,
+                }
+              : { active: false },
+          };
         }
 
         case "move_scene": {
-          const scene = this.db.getScene() ?? {
-            placeId: "",
-            name: "",
-            description: "",
-            present: [],
-            features: [],
-            time: "day",
-          };
+          const scene = this.db.getScene();
+          if (!scene) throw new Error("No scene set");
           if (args.placeId) {
-            const place = this.db.findPlace(String(args.placeId));
-            if (!place) {
-              const known = this.db.listPlaces().map((p) => `${p.id} ("${p.name}")`).join(", ");
-              throw new Error(`Unknown place: ${args.placeId}. Known places: ${known}`);
+            const wanted = String(args.placeId);
+            const current = this.db.getPlace(scene.placeId);
+            const legal = current?.exits ?? [];
+            if (wanted !== scene.placeId && !legal.some((e) => e.to === wanted)) {
+              const listed = legal.map((e) => `${e.to} (${e.description})`).join("; ") || "(none)";
+              throw new Error(
+                `Cannot move to "${wanted}" from ${scene.placeId}. Legal exits: ${listed}. Use an exact id from this list.`,
+              );
             }
+            const place = this.db.getPlace(wanted);
+            if (!place) throw new Error(`No place with exact id "${wanted}".`);
             scene.placeId = place.id;
             scene.name = place.name;
             scene.description = place.description;
             scene.features = place.features;
-            // Rotate one sensory detail per visit so revisits don't repeat.
             const visitKey = `visits:${place.id}`;
             const visits = parseInt(this.db.getMeta(visitKey) ?? "0", 10);
             this.db.setMeta(visitKey, String(visits + 1));
             const sensory = place.sensory.length ? place.sensory[visits % place.sensory.length] : undefined;
             if (args.time) scene.time = String(args.time);
             this.db.saveScene(scene);
-            return { moved: true, scene, sensoryDetail: sensory, exits: place.exits, visitNumber: visits + 1 };
+            return { moved: true, scene, sensoryDetail: sensory, exits: place.exits, tags: place.tags, visitNumber: visits + 1 };
           }
           for (const id of (args.addPresent as string[]) ?? []) if (!scene.present.includes(id)) scene.present.push(id);
           for (const id of (args.removePresent as string[]) ?? []) scene.present = scene.present.filter((p) => p !== id);
@@ -365,44 +313,160 @@ export class ToolExecutor {
 
         case "lookup": {
           const data = this.db.getContent(String(args.kind), String(args.name));
-          return data ?? { error: `No ${args.kind} named "${args.name}" in content. You may improvise, but write what you decide to canon.` };
+          return data ?? { error: `No ${args.kind} with exact id or unique name "${args.name}". Use find_monsters / find_items.` };
+        }
+
+        case "find_monsters": {
+          const rows = this.db.findMonsters({
+            crMin: args.crMin != null ? Number(args.crMin) : undefined,
+            crMax: args.crMax != null ? Number(args.crMax) : undefined,
+            type: args.type as string | undefined,
+            environment: args.environment as string | undefined,
+            keywords: args.keywords as string | undefined,
+          });
+          return rows.map((r) => {
+            const m = r as MonsterRecord;
+            return { id: m.id, name: m.name, cr: m.cr, type: m.type, environments: m.environments, description: m.description };
+          });
+        }
+
+        case "find_items": {
+          const rows = this.db.findItems({
+            rarityMax: args.rarityMax as string | undefined,
+            category: args.category as string | undefined,
+            keywords: args.keywords as string | undefined,
+            budgetGp: args.budgetGp != null ? Number(args.budgetGp) : undefined,
+          });
+          return rows.map((r) => {
+            const i = r as ItemRecord;
+            return { id: i.id, name: i.name, rarity: i.rarity, category: i.category, costGp: i.costGp, mechanics: i.mechanics };
+          });
+        }
+
+        case "suggest_encounter": {
+          const difficulty = args.difficulty as EncounterDifficulty;
+          const levels = this.db.getPlayerIds().map((id) => this.db.getCharacter(id)?.level ?? 1);
+          const budget = partyXpBudget(levels, difficulty);
+          const scene = this.db.getScene();
+          const place = scene ? this.db.getPlace(scene.placeId) : undefined;
+          const env = place?.tags?.[0];
+          let monsters = this.db.findMonsters({ environment: env, limit: 40 }) as MonsterRecord[];
+          if (monsters.length === 0) monsters = this.db.findMonsters({ limit: 40 }) as MonsterRecord[];
+          const candidates = monsters.map((m) => ({
+            id: m.id,
+            name: m.name,
+            cr: m.cr,
+            xp: xpForCr(m.cr),
+            type: m.type,
+            description: m.description,
+          }));
+          return {
+            partyLevels: levels,
+            difficulty,
+            xpBudget: budget,
+            environmentTags: place?.tags ?? [],
+            compositions: composeEncounters(candidates, budget, difficulty),
+          };
         }
 
         case "spawn_monster": {
-          const data = this.db.getContent("monster", String(args.monster)) as
-            | { sheet: Record<string, unknown> }
-            | undefined;
-          if (!data?.sheet) throw new Error(`No monster named "${args.monster}" in content`);
+          const data = this.db.getContent("monster", String(args.monster)) as MonsterRecord | undefined;
+          if (!data?.sheet) throw new Error(`No monster with exact id "${args.monster}". Use find_monsters first.`);
           let n = 1;
-          while (this.db.getCharacter(`${String(args.monster).toLowerCase().replace(/\s+/g, "-")}-${n}`)) n++;
-          const id = `${String(args.monster).toLowerCase().replace(/\s+/g, "-")}-${n}`;
-          const label = (args.label as string) || `${data.sheet.name} ${n}`;
-          const sheet = { ...data.sheet, id, name: label, kind: "monster" } as never;
+          const base = data.id;
+          while (this.db.getCharacter(`${base}-${n}`)) n++;
+          const id = `${base}-${n}`;
+          const label = (args.label as string) || `${data.name} ${n}`;
+          const sheet = { ...data.sheet, id, name: label, kind: "monster" as const };
           this.db.saveCharacter(sheet);
           const scene = this.db.getScene();
           if (scene && !scene.present.includes(id)) {
             scene.present.push(id);
             this.db.saveScene(scene);
           }
-          return { id, name: label, hp: (sheet as { hp: number }).hp, ac: (sheet as { ac: number }).ac };
+          const combat = this.db.getCombat();
+          if (combat?.active) {
+            const init = d20(rng, { modifier: Math.floor((sheet.abilities.dex - 10) / 2) }).total;
+            combat.order.push({ id, initiative: init });
+            combat.order.sort((a, b) => b.initiative - a.initiative);
+            combat.economy[id] = { action: true, bonus: true, movement: true, reaction: true };
+            this.db.saveCombat(combat);
+          }
+          return { id, name: label, hp: sheet.hp, ac: sheet.ac };
+        }
+
+        case "start_combat": {
+          const scene = this.db.getScene();
+          if (!scene) throw new Error("No scene set");
+          const ids = [...new Set([...this.db.getPlayerIds(), ...scene.present])];
+          const combatants = ids.map((id) => {
+            const s = this.db.getCharacter(id);
+            if (!s) throw new Error(`Present id "${id}" has no sheet`);
+            return s;
+          });
+          const state = startCombat(rng, combatants);
+          this.db.saveCombat(state);
+          return {
+            round: state.round,
+            currentId: currentCombatant(state),
+            order: state.order,
+          };
+        }
+
+        case "end_combat": {
+          this.db.saveCombat(undefined);
+          return { ended: true };
+        }
+
+        case "next_combat_turn": {
+          const combat = this.db.getCombat();
+          if (!combat?.active) throw new Error("Combat is not active");
+          const { wrapped } = advanceTurn(combat);
+          let expired: { id: string; expired: string[] }[] = [];
+          if (wrapped) {
+            const sheets = combat.order.map((c) => this.db.getCharacter(c.id)).filter(Boolean);
+            expired = expireConditions(sheets as NonNullable<(typeof sheets)[number]>[], combat.round);
+            for (const s of sheets) if (s) this.db.saveCharacter(s);
+          }
+          this.db.saveCombat(combat);
+          return {
+            round: combat.round,
+            currentId: currentCombatant(combat),
+            wrapped,
+            expired,
+            economy: combat.economy[currentCombatant(combat) ?? ""],
+          };
+        }
+
+        case "death_save": {
+          const sheet = this.character(args.characterId as string, false);
+          if (sheet.hp > 0) throw new Error(`${sheet.name} is not at 0 HP`);
+          if (sheet.kind !== "pc") throw new Error("Death saves are for player characters; monsters die at 0 HP");
+          const r = d20(rng);
+          const result = applyDeathSave(sheet, r.kept, r.natural20, r.natural1);
+          this.db.saveCharacter(sheet);
+          return { ...result, d20: r };
         }
 
         case "canon_search": {
           const facts = this.db.searchCanon(String(args.query));
           return facts.length
             ? facts.map((f) => ({ subject: f.subject, fact: f.fact, turn: f.turn }))
-            : { result: "No canon found for that query. If you establish this fact in narration, record it with canon_write." };
+            : { result: "No canon found. If you establish this fact, record it with canon_write." };
         }
 
         case "canon_write": {
-          const id = this.db.writeCanon(
-            String(args.subject),
-            String(args.fact),
-            String(args.tags ?? ""),
-            this.turn,
-            "dm",
-          );
+          const id = this.db.writeCanon(String(args.subject), String(args.fact), String(args.tags ?? ""), this.turn, "dm", false);
           return { recorded: true, id };
+        }
+
+        case "reveal_secret": {
+          const hidden = this.db.hiddenCanonBySubject(String(args.subject));
+          if (hidden.length === 0) {
+            return { error: `No hidden secret for subject "${args.subject}". Subjects are exact (e.g. "The east gallery").` };
+          }
+          const revealed = hidden.map((f) => this.db.revealCanon(f.id)).filter(Boolean);
+          return { revealed: revealed.map((f) => ({ subject: f!.subject, fact: f!.fact })) };
         }
 
         default:
@@ -414,4 +478,4 @@ export class ToolExecutor {
   }
 }
 
-export { spellSaveDC, spellAttackModifier };
+export { spellSaveDC };

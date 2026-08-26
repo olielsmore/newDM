@@ -29,9 +29,12 @@ describe("fixture seed", () => {
     expect(scene?.present).toContain("marla");
   });
 
-  it("finds characters case-insensitively by name", () => {
-    expect(db.findCharacter("marla fenwick")?.id).toBe("marla");
-    expect(db.findCharacter("MARLA")?.id).toBe("marla");
+  it("resolves characters by exact id or exact unique name only", () => {
+    expect(db.resolveCharacter("marla").id).toBe("marla");
+    expect(db.resolveCharacter("MARLA").id).toBe("marla"); // exact id, case-insensitive
+    expect(db.resolveCharacter("Marla Fenwick").id).toBe("marla");
+    expect(() => db.resolveCharacter("gob")).toThrow(/Unknown character/);
+    expect(() => db.resolveCharacter("Marla F")).toThrow(/Unknown character/);
   });
 });
 
@@ -107,25 +110,98 @@ describe("tools", () => {
     expect(found[0].subject).toBe("The Well");
   });
 
-  it("move_scene fuzzy-matches wrong-but-close place ids", () => {
+  it("move_scene rejects guessed ids and lists exact legal exits", () => {
     const tools = new ToolExecutor(db, 1);
-    const r = tools.execute("move_scene", { placeId: "mine-gallery" }) as { moved: boolean; scene: { placeId: string } };
-    expect(r.moved).toBe(true);
-    expect(r.scene.placeId).toBe("warrens-gallery");
-    const byName = tools.execute("move_scene", { placeId: "The Saltmine Mouth" }) as { scene: { placeId: string } };
-    expect(byName.scene.placeId).toBe("warrens-entrance");
+    expect(() => tools.execute("move_scene", { placeId: "mine-gallery" })).toThrow(/Legal exits:.*town-square/);
+    expect(() => tools.execute("move_scene", { placeId: "The Saltmine Mouth" })).toThrow(/Legal exits/);
+    expect(() => tools.execute("move_scene", { placeId: "xyzzy" })).toThrow(/Legal exits: town-square/);
+    const ok = tools.execute("move_scene", { placeId: "town-square" }) as { scene: { placeId: string } };
+    expect(ok.scene.placeId).toBe("town-square");
   });
 
-  it("move_scene error lists known places for recovery", () => {
-    const tools = new ToolExecutor(db, 1);
-    expect(() => tools.execute("move_scene", { placeId: "xyzzy" })).toThrow(/Known places:.*warrens-gallery/);
-  });
-
-  it("lookup finds content by fuzzy name", () => {
+  it("lookup finds content by exact unique name, not a substring", () => {
     const tools = new ToolExecutor(db, 1);
     const spell = tools.execute("lookup", { kind: "spell", name: "guiding bolt" }) as { name: string };
     expect(spell.name).toBe("Guiding Bolt");
     const missing = tools.execute("lookup", { kind: "spell", name: "wish" }) as { error?: string };
     expect(missing.error).toBeTruthy();
+    const substring = tools.execute("lookup", { kind: "spell", name: "bolt" }) as { error?: string };
+    expect(substring.error).toBeTruthy();
+  });
+
+  it("hidden secrets are excluded from search until reveal_secret", () => {
+    const tools = new ToolExecutor(db, 1);
+    const before = db.searchCanon("pale folk ghouls");
+    expect(before.every((f) => !/ghoul/i.test(f.fact))).toBe(true);
+    const revealed = tools.execute("reveal_secret", { subject: "The pale folk" }) as { revealed: { fact: string }[] };
+    expect(revealed.revealed[0].fact).toMatch(/ghoul/i);
+    const after = db.searchCanon("ghouls");
+    expect(after[0].fact).toMatch(/ghoul/i);
+  });
+
+  it("find_monsters filters by environment and CR", () => {
+    const tools = new ToolExecutor(db, 1);
+    const undead = tools.execute("find_monsters", { environment: "undead-haunted", crMax: 1 }) as { id: string; cr: string }[];
+    expect(undead.map((m) => m.id)).toEqual(expect.arrayContaining(["skeleton", "ghoul"]));
+    expect(undead.find((m) => m.id === "wolf")).toBeUndefined();
+  });
+
+  it("suggest_encounter returns compositions within the party XP budget", () => {
+    const tools = new ToolExecutor(db, 1);
+    const suggestion = tools.execute("suggest_encounter", { difficulty: "medium" }) as {
+      xpBudget: number;
+      compositions: { adjustedXp: number }[];
+    };
+    expect(suggestion.xpBudget).toBe(100); // level 2 medium
+    expect(suggestion.compositions.length).toBeGreaterThan(0);
+    for (const c of suggestion.compositions) expect(c.adjustedXp).toBeLessThanOrEqual(suggestion.xpBudget);
+  });
+
+  it("add_item refuses invented loot", () => {
+    const tools = new ToolExecutor(db, 1);
+    expect(() => tools.execute("apply_effect", { targetId: "sera", effect: "add_item", detail: "Vorpal Sword" })).toThrow(
+      /Unknown item/,
+    );
+    const ok = tools.execute("apply_effect", { targetId: "sera", effect: "add_item", detail: "potion-of-healing" }) as {
+      inventory: { name: string }[];
+    };
+    expect(ok.inventory.some((i) => i.name === "Potion of Healing")).toBe(true);
+  });
+
+  it("cast_spell spends a slot and applies structured effects", () => {
+    const tools = new ToolExecutor(db, 1);
+    const before = db.getPlayerCharacter();
+    expect(before.spellSlots["1"].used).toBe(0);
+    const result = tools.execute("cast_spell", { casterId: "sera", spell: "Cure Wounds", targetId: "sera" }) as {
+      slotSpent: boolean;
+      remainingSlots: number;
+    };
+    expect(result.slotSpent).toBe(true);
+    expect(result.remainingSlots).toBe(2);
+    expect(db.getPlayerCharacter().spellSlots["1"].used).toBe(1);
+  });
+
+  it("combat: initiative, economy, monster death removes from scene", () => {
+    const tools = new ToolExecutor(db, 1);
+    tools.execute("spawn_monster", { monster: "goblin" });
+    const started = tools.execute("start_combat", {}) as { order: { id: string }[]; currentId: string };
+    expect(started.order.map((o) => o.id)).toEqual(expect.arrayContaining(["sera", "goblin-1"]));
+    expect(started.currentId).toBeTruthy();
+    tools.execute("apply_effect", { targetId: "goblin-1", effect: "damage", amount: 20 });
+    expect(db.getCharacter("goblin-1")!.hp).toBe(0);
+    expect(db.getScene()?.present).not.toContain("goblin-1");
+    expect(db.getCombat()?.order.find((o) => o.id === "goblin-1")).toBeUndefined();
+  });
+
+  it("second attack in the same combat turn is refused by the action economy", () => {
+    const tools = new ToolExecutor(db, 1);
+    tools.execute("spawn_monster", { monster: "goblin" });
+    tools.execute("start_combat", {});
+    const combat = db.getCombat()!;
+    // Force it to be Sera's turn so the test is deterministic.
+    combat.currentIndex = combat.order.findIndex((o) => o.id === "sera");
+    db.saveCombat(combat);
+    tools.execute("attack", { attackerId: "sera", targetId: "goblin-1" });
+    expect(() => tools.execute("attack", { attackerId: "sera", targetId: "goblin-1" })).toThrow(/already used their action/);
   });
 });

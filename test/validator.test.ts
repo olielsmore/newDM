@@ -90,3 +90,33 @@ describe("scene drift detection", () => {
     expect(validateNarration(prose, [], scene)).toEqual([]);
   });
 });
+
+describe("leveled spell slot enforcement", () => {
+  it("flags casting Guiding Bolt with no slot spent", () => {
+    const violations = validateNarration("You cast Guiding Bolt at the darkness.", [], {
+      leveledSpells: ["Guiding Bolt", "Cure Wounds"],
+    });
+    expect(violations.some((v) => v.problem.includes("Guiding Bolt"))).toBe(true);
+  });
+
+  it("accepts the same narration when cast_spell ran", () => {
+    const events: GameEvent[] = [
+      { id: 1, turn: 1, kind: "cast_spell", data: { args: { spell: "Guiding Bolt" }, result: { slotSpent: true } } },
+    ];
+    expect(
+      validateNarration("You cast Guiding Bolt at the darkness.", events, { leveledSpells: ["Guiding Bolt"] }),
+    ).toEqual([]);
+  });
+
+  it("does not flag a cantrip by name alone when it is not in the leveled list", () => {
+    expect(validateNarration("You cast Sacred Flame.", [], { leveledSpells: ["Guiding Bolt"] })).toEqual([]);
+  });
+});
+
+describe("word budget", () => {
+  it("flags narration more than 2x the budget", () => {
+    const prose = Array(50).fill("word").join(" ");
+    const violations = validateNarration(prose, [], { wordBudget: 20 });
+    expect(violations.some((v) => v.problem.includes("budget"))).toBe(true);
+  });
+});

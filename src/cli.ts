@@ -31,7 +31,7 @@ function printScene(db: GameDb): void {
   console.log(scene.description);
   const present = scene.present
     .map((id) => {
-      const c = db.findCharacter(id);
+      const c = db.getCharacter(id);
       return c ? `${c.name} (${c.hp}/${c.maxHp})` : id;
     })
     .join(", ");

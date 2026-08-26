@@ -35,7 +35,7 @@ describe("DmAgent turn loop", () => {
       { text: '[{"subject": "Alderman Hobb Greely", "fact": "Sera sensed he is hiding something about the east gallery.", "tags": "npc,insight"}]', toolCalls: [] },
     ]);
 
-    const agent = new DmAgent(db, dmProvider, scribeProvider);
+    const agent = new DmAgent(db, dmProvider, scribeProvider, { llmGrounding: false });
     const result = await agent.playTurn("I study Greely's face while he talks. Is he lying?");
 
     expect(result.toolCallCount).toBe(1);
@@ -61,7 +61,7 @@ describe("DmAgent turn loop", () => {
     ]);
     const scribeProvider = new MockProvider([{ text: "[]", toolCalls: [] }]);
 
-    const agent = new DmAgent(db, dmProvider, scribeProvider);
+    const agent = new DmAgent(db, dmProvider, scribeProvider, { llmGrounding: false });
     const result = await agent.playTurn("I step into the corridor.");
 
     expect(result.corrected).toBe(true);
@@ -76,7 +76,7 @@ describe("DmAgent turn loop", () => {
   it("a failing scribe never breaks the turn", async () => {
     const dmProvider = new MockProvider([{ text: "Rain keeps falling.", toolCalls: [] }]);
     const scribeProvider = new MockProvider([]); // will throw: no scripted responses
-    const agent = new DmAgent(db, dmProvider, scribeProvider);
+    const agent = new DmAgent(db, dmProvider, scribeProvider, { llmGrounding: false });
     const result = await agent.playTurn("I wait.");
     expect(result.prose).toBe("Rain keeps falling.");
     expect(result.factsWritten).toBe(0);

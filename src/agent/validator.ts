@@ -1,6 +1,7 @@
 /**
- * Grounding validator: every mechanical claim in prose must trace to a
- * tool result from this turn. Hallucinated mechanics become lint, not vibes.
+ * Deterministic grounding. Every mechanical claim in prose must trace to
+ * a tool result from this turn. Spell names, arrivals, and invented loot
+ * are the same: lint, not vibes.
  */
 import { GameEvent } from "../state/db.js";
 
@@ -9,7 +10,6 @@ export interface Violation {
   problem: string;
 }
 
-/** Collect every number that legitimately appeared in this turn's tool results. */
 function numbersFromEvents(events: GameEvent[]): Set<number> {
   const nums = new Set<number>();
   const walk = (value: unknown): void => {
@@ -33,11 +33,17 @@ const MECHANICAL_PATTERNS: { re: RegExp; label: string }[] = [
   { re: /\bnatural\s+(\d{1,2})\b/gi, label: "natural roll" },
 ];
 
-const MECHANICAL_EVENT_KINDS = new Set(["roll", "ability_check", "saving_throw", "attack", "apply_effect"]);
+const MECHANICAL_EVENT_KINDS = new Set(["roll", "ability_check", "saving_throw", "attack", "apply_effect", "cast_spell", "death_save"]);
 
 export interface SceneInfo {
   currentPlaceId: string;
   places: { id: string; name: string }[];
+}
+
+export interface ValidationContext {
+  scene?: SceneInfo;
+  leveledSpells?: string[];
+  wordBudget?: number;
 }
 
 const ARRIVAL_VERBS =
@@ -47,7 +53,6 @@ function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-/** Narrating arrival at a known place without moving the scene there is continuity drift. */
 function checkSceneDrift(prose: string, events: GameEvent[], scene: SceneInfo): Violation[] {
   const movedTo = new Set(
     events
@@ -59,23 +64,64 @@ function checkSceneDrift(prose: string, events: GameEvent[], scene: SceneInfo): 
   for (const place of scene.places) {
     if (place.id === scene.currentPlaceId || movedTo.has(place.id)) continue;
     const shortName = escapeRegex(place.name.replace(/^the\s+/i, ""));
-    const re = new RegExp(`(?:${ARRIVAL_VERBS})[^.!?\\n]{0,60}?\\b(?:the\\s+)?${shortName}\\b|\\b(?:the\\s+)?${shortName}\\b[^.!?\\n]{0,30}?(?:${ARRIVAL_VERBS})`, "i");
+    const re = new RegExp(
+      `(?:${ARRIVAL_VERBS})[^.!?\\n]{0,60}?\\b(?:the\\s+)?${shortName}\\b|\\b(?:the\\s+)?${shortName}\\b[^.!?\\n]{0,30}?(?:${ARRIVAL_VERBS})`,
+      "i",
+    );
     const m = re.exec(prose);
     if (m) {
       violations.push({
         claim: m[0].trim().slice(0, 80),
-        problem: `narrates arriving at "${place.name}" but the scene was never moved there — call move_scene("${place.id}") and use its real details`,
+        problem: `narrates arriving at "${place.name}" but the scene was never moved there — call move_scene("${place.id}") using an exact exit id`,
       });
     }
   }
   return violations;
 }
 
-export function validateNarration(prose: string, events: GameEvent[], scene?: SceneInfo): Violation[] {
+function checkSpellSlots(prose: string, events: GameEvent[], leveledSpells: string[]): Violation[] {
+  const spent = events.some((e) => {
+    if (e.kind === "cast_spell") return true;
+    if (e.kind !== "apply_effect") return false;
+    const effect = (e.data as { args?: { effect?: string } }).args?.effect;
+    return effect === "spend_slot";
+  });
+  const violations: Violation[] = [];
+  for (const spell of leveledSpells) {
+    const re = new RegExp(`\\bcast(?:s|ing)?\\s+(?:a\\s+|the\\s+)?${escapeRegex(spell)}\\b`, "i");
+    const m = re.exec(prose);
+    if (m && !spent) {
+      violations.push({
+        claim: m[0],
+        problem: `cast a leveled spell (${spell}) but no cast_spell or spend_slot happened this turn`,
+      });
+    }
+  }
+  return violations;
+}
+
+function checkWordBudget(prose: string, budget: number): Violation[] {
+  const words = prose.trim().split(/\s+/).filter(Boolean).length;
+  if (words > budget * 2) {
+    return [
+      {
+        claim: `${words} words`,
+        problem: `narration is ${words} words against a ${budget}-word budget — cut it to one strong image and a hook`,
+      },
+    ];
+  }
+  return [];
+}
+
+export function validateNarration(prose: string, events: GameEvent[], ctx: SceneInfo | ValidationContext = {}): Violation[] {
+  const context: ValidationContext =
+    ctx && "currentPlaceId" in ctx ? { scene: ctx } : (ctx as ValidationContext);
   const violations: Violation[] = [];
   const grounded = numbersFromEvents(events);
   const hadMechanicalEvent = events.some((e) => MECHANICAL_EVENT_KINDS.has(e.kind));
-  if (scene) violations.push(...checkSceneDrift(prose, events, scene));
+  if (context.scene) violations.push(...checkSceneDrift(prose, events, context.scene));
+  if (context.leveledSpells?.length) violations.push(...checkSpellSlots(prose, events, context.leveledSpells));
+  if (context.wordBudget) violations.push(...checkWordBudget(prose, context.wordBudget));
 
   for (const { re, label } of MECHANICAL_PATTERNS) {
     re.lastIndex = 0;
@@ -94,16 +140,24 @@ export function validateNarration(prose: string, events: GameEvent[], scene?: Sc
     }
   }
 
-  // Claiming a hit/miss/kill with zero mechanical tool calls this turn.
   if (!hadMechanicalEvent) {
-    const combatClaim = /\b(?:your\s+(?:attack|blow|strike|blade|arrow|spell)\s+(?:hits|lands|connects|misses)|critical\s+hit|you\s+(?:hit|miss)\s+(?:the|him|her|it|them))\b/i.exec(prose);
+    const combatClaim =
+      /\b(?:your\s+(?:attack|blow|strike|blade|arrow|spell)\s+(?:hits|lands|connects|misses)|critical\s+hit|you\s+(?:hit|miss)\s+(?:the|him|her|it|them))\b/i.exec(
+        prose,
+      );
     if (combatClaim) {
       violations.push({
         claim: combatClaim[0],
-        problem: "combat outcome narrated but no attack/check/roll tool was called this turn",
+        problem: "combat outcome narrated but no attack/check/roll/cast tool was called this turn",
       });
     }
   }
 
   return violations;
+}
+
+export function wordBudgetFor(opts: { opening: boolean; combat: boolean }): number {
+  if (opts.opening) return 160;
+  if (opts.combat) return 80;
+  return 120;
 }
