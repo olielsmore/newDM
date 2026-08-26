@@ -35,10 +35,47 @@ const MECHANICAL_PATTERNS: { re: RegExp; label: string }[] = [
 
 const MECHANICAL_EVENT_KINDS = new Set(["roll", "ability_check", "saving_throw", "attack", "apply_effect"]);
 
-export function validateNarration(prose: string, events: GameEvent[]): Violation[] {
+export interface SceneInfo {
+  currentPlaceId: string;
+  places: { id: string; name: string }[];
+}
+
+const ARRIVAL_VERBS =
+  "enter(?:ing|s)?|step(?:s|ping)?\\s+into|reach(?:es|ing)?|arriv(?:e|es|ing)\\s+(?:at|in)|descend(?:s|ing)?\\s+(?:into|to)|climb(?:s|ing)?\\s+(?:into|down\\s+to)|wade(?:s|ing)?\\s+(?:into|through)|emerge(?:s|ing)?\\s+(?:into|in)|open(?:s)?\\s+up|stretches\\s+(?:ahead|before)|swallows\\s+you";
+
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** Narrating arrival at a known place without moving the scene there is continuity drift. */
+function checkSceneDrift(prose: string, events: GameEvent[], scene: SceneInfo): Violation[] {
+  const movedTo = new Set(
+    events
+      .filter((e) => e.kind === "move_scene")
+      .map((e) => (e.data as { result?: { scene?: { placeId?: string } } }).result?.scene?.placeId)
+      .filter(Boolean),
+  );
+  const violations: Violation[] = [];
+  for (const place of scene.places) {
+    if (place.id === scene.currentPlaceId || movedTo.has(place.id)) continue;
+    const shortName = escapeRegex(place.name.replace(/^the\s+/i, ""));
+    const re = new RegExp(`(?:${ARRIVAL_VERBS})[^.!?\\n]{0,60}?\\b(?:the\\s+)?${shortName}\\b|\\b(?:the\\s+)?${shortName}\\b[^.!?\\n]{0,30}?(?:${ARRIVAL_VERBS})`, "i");
+    const m = re.exec(prose);
+    if (m) {
+      violations.push({
+        claim: m[0].trim().slice(0, 80),
+        problem: `narrates arriving at "${place.name}" but the scene was never moved there — call move_scene("${place.id}") and use its real details`,
+      });
+    }
+  }
+  return violations;
+}
+
+export function validateNarration(prose: string, events: GameEvent[], scene?: SceneInfo): Violation[] {
   const violations: Violation[] = [];
   const grounded = numbersFromEvents(events);
   const hadMechanicalEvent = events.some((e) => MECHANICAL_EVENT_KINDS.has(e.kind));
+  if (scene) violations.push(...checkSceneDrift(prose, events, scene));
 
   for (const { re, label } of MECHANICAL_PATTERNS) {
     re.lastIndex = 0;

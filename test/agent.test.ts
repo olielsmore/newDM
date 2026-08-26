@@ -70,7 +70,7 @@ describe("DmAgent turn loop", () => {
     // The correction request must spell out the violation.
     const correctionCall = dmProvider.calls[1];
     const lastMsg = correctionCall.messages[correctionCall.messages.length - 1];
-    expect(lastMsg.content).toContain("ungrounded");
+    expect(lastMsg.content).toContain("does not appear in any tool result");
   });
 
   it("a failing scribe never breaks the turn", async () => {

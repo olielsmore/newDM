@@ -88,8 +88,13 @@ export class DmAgent {
       }
     }
 
-    // Grounding check: every mechanical claim must trace to a tool result this turn.
-    let violations = validateNarration(prose, this.db.eventsForTurn(turn));
+    // Grounding check: mechanical claims must trace to tool results, and
+    // narrated arrivals must match an actual scene move.
+    const sceneInfo = () => {
+      const scene = this.db.getScene();
+      return scene ? { currentPlaceId: scene.placeId, places: this.db.listPlaces() } : undefined;
+    };
+    let violations = validateNarration(prose, this.db.eventsForTurn(turn), sceneInfo());
     let corrected = false;
     if (violations.length > 0) {
       hooks.onCorrection?.();
@@ -97,17 +102,41 @@ export class DmAgent {
       messages.push({
         role: "user",
         content:
-          `[SYSTEM CHECK — the player did not see this] Your narration contains ungrounded mechanics:\n` +
+          `[SYSTEM CHECK — the player did not see this] Your narration has problems:\n` +
           violations.map((v) => `- "${v.claim}": ${v.problem}`).join("\n") +
-          `\nRewrite the narration using ONLY numbers and outcomes from this turn's actual tool results (or no numbers at all). Same events, same voice. Respond with the corrected narration only.`,
+          `\nFix them: call any tools you skipped (move_scene, rolls), then rewrite the narration grounded in the actual tool results. Same events, same voice. Respond with the corrected narration.`,
       });
+      // The retry may call tools (e.g. the move_scene it skipped).
       let correctedProse = "";
-      const retry = await this.dmProvider.chat({
-        messages,
-        onText: (d) => (correctedProse += d),
-      });
-      correctedProse = correctedProse || retry.text;
-      const retryViolations = validateNarration(correctedProse, this.db.eventsForTurn(turn));
+      for (let i = 0; i < 4; i++) {
+        const retry = await this.dmProvider.chat({
+          messages,
+          tools: TOOL_DEFS,
+          onText: (d) => (correctedProse += d),
+        });
+        if (retry.toolCalls.length === 0) break;
+        messages.push({
+          role: "assistant",
+          content: retry.text ?? "",
+          tool_calls: retry.toolCalls.map((tc) => ({
+            id: tc.id,
+            type: "function" as const,
+            function: { name: tc.name, arguments: JSON.stringify(tc.args) },
+          })),
+        });
+        for (const tc of retry.toolCalls) {
+          toolCallCount++;
+          hooks.onToolCall?.(tc.name, tc.args);
+          let toolResult: unknown;
+          try {
+            toolResult = executor.execute(tc.name, tc.args);
+          } catch (err) {
+            toolResult = { error: err instanceof Error ? err.message : String(err) };
+          }
+          messages.push({ role: "tool", content: JSON.stringify(toolResult), tool_call_id: tc.id });
+        }
+      }
+      const retryViolations = validateNarration(correctedProse, this.db.eventsForTurn(turn), sceneInfo());
       if (correctedProse.trim() && retryViolations.length <= violations.length) {
         prose = correctedProse;
         violations = retryViolations;

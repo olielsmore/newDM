@@ -46,3 +46,47 @@ describe("validateNarration", () => {
     expect(validateNarration(prose, [])).toEqual([]);
   });
 });
+
+describe("scene drift detection", () => {
+  const scene = {
+    currentPlaceId: "warrens-entrance",
+    places: [
+      { id: "warrens-entrance", name: "The Saltmine Mouth" },
+      { id: "warrens-gallery", name: "The First Gallery" },
+      { id: "warrens-deep", name: "The Flooded East Gallery" },
+    ],
+  };
+
+  it("flags narrated arrival at an unmoved place", () => {
+    const prose = "You descend into the First Gallery, torch held high.";
+    const violations = validateNarration(prose, [], scene);
+    expect(violations.length).toBe(1);
+    expect(violations[0].problem).toContain("warrens-gallery");
+  });
+
+  it("flags 'the gallery opens up' style arrivals", () => {
+    const prose = "The first gallery opens up like a cathedral of forgotten labor.";
+    expect(validateNarration(prose, [], scene).length).toBe(1);
+  });
+
+  it("accepts arrival when move_scene actually happened", () => {
+    const moveEvent: GameEvent = {
+      id: 1,
+      turn: 1,
+      kind: "move_scene",
+      data: { args: { placeId: "warrens-gallery" }, result: { moved: true, scene: { placeId: "warrens-gallery" } } },
+    };
+    const prose = "You step into the First Gallery; salt walls drink your lamplight.";
+    expect(validateNarration(prose, [moveEvent], scene)).toEqual([]);
+  });
+
+  it("does not flag mere mentions without arrival", () => {
+    const prose = "Derva warned that the First Gallery was unstable, and pointed back the way you came.";
+    expect(validateNarration(prose, [], scene)).toEqual([]);
+  });
+
+  it("does not flag the current place", () => {
+    const prose = "You step back into the Saltmine Mouth's gray daylight.";
+    expect(validateNarration(prose, [], scene)).toEqual([]);
+  });
+});

@@ -34,11 +34,12 @@ function sceneSnapshot(db: GameDb): string {
   const place = db.getPlace(scene.placeId);
   const exits = place?.exits.map((e) => `${e.to} (${e.description})`).join("; ") ?? "";
   return [
-    `Location: ${scene.name} — ${scene.description}`,
+    `Location: ${scene.name} (place id: ${scene.placeId}) — ${scene.description}`,
     `Time: ${scene.time}`,
     present ? `Present: ${present}` : "Present: no one but the player",
     scene.features.length ? `Features: ${scene.features.join("; ")}` : "",
     exits ? `Exits: ${exits}` : "",
+    `The party is HERE until you call move_scene. Narrating an arrival elsewhere without moving the scene is a continuity error.`,
   ]
     .filter(Boolean)
     .join("\n");
