@@ -115,8 +115,9 @@ describe("tools", () => {
     expect(() => tools.execute("move_scene", { placeId: "mine-gallery" })).toThrow(/Legal exits:.*town-square/);
     expect(() => tools.execute("move_scene", { placeId: "The Saltmine Mouth" })).toThrow(/Legal exits/);
     expect(() => tools.execute("move_scene", { placeId: "xyzzy" })).toThrow(/Legal exits: town-square/);
-    const ok = tools.execute("move_scene", { placeId: "town-square" }) as { scene: { placeId: string } };
+    const ok = tools.execute("move_scene", { placeId: "town-square" }) as { scene: { placeId: string; present: string[] } };
     expect(ok.scene.placeId).toBe("town-square");
+    expect(ok.scene.present).toEqual(["sera"]);
   });
 
   it("lookup finds content by exact unique name, not a substring", () => {

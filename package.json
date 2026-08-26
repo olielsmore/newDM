@@ -11,7 +11,8 @@
     "models:check": "tsx src/llm/check.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "dev": "tsx src/server/index.ts"
+    "dev": "tsx src/server/index.ts",
+    "ui": "pnpm --dir web dev"
   },
   "packageManager": "pnpm@10.33.3",
   "pnpm": {

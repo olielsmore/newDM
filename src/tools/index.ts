@@ -296,6 +296,9 @@ export class ToolExecutor {
             scene.name = place.name;
             scene.description = place.description;
             scene.features = place.features;
+            // Occupants of the new place start as the party. NPCs do not
+            // silently follow; add them with addPresent if they come along.
+            scene.present = this.db.getPlayerIds();
             const visitKey = `visits:${place.id}`;
             const visits = parseInt(this.db.getMeta(visitKey) ?? "0", 10);
             this.db.setMeta(visitKey, String(visits + 1));

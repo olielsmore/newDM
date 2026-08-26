@@ -46,7 +46,8 @@ export function createApp(session: Session): Hono {
   app.get("/api/scene", (c) => {
     const scene = db().getScene();
     const place = scene ? db().getPlace(scene.placeId) : undefined;
-    const present = (scene?.present ?? []).map((id) => {
+    const ids = [...new Set([...(scene?.present ?? []), ...db().getPlayerIds()])];
+    const present = ids.map((id) => {
       const ch = db().getCharacter(id);
       return ch ? { id: ch.id, name: ch.name, kind: ch.kind, hp: ch.hp, maxHp: ch.maxHp, conditions: ch.conditions } : { id };
     });

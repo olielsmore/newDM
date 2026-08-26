@@ -1,0 +1,19 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+}
+
+textarea, input, button {
+  font-family: inherit;
+}
+
+.prose-dm p { margin: 0 0 0.75rem; }
+.prose-dm p:last-child { margin-bottom: 0; }
