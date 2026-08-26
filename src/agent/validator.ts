@@ -150,13 +150,14 @@ export function validateNarration(prose: string, events: GameEvent[], ctx: Scene
 
   if (!hadMechanicalEvent) {
     const combatClaim =
-      /\b(?:your\s+(?:attack|blow|strike|blade|arrow|spell)\s+(?:hits|lands|connects|misses)|critical\s+hit|you\s+(?:hit|miss)\s+(?:the|him|her|it|them))\b/i.exec(
+      /\b(?:your\s+(?:attack|blow|strike|blade|arrow|spell|mace|sword|axe|hammer)\s+(?:hits|lands|connects|meets|catches|crunches|misses)|(?:mace|blade|sword|axe|hammer|weapon|steel|metal)\s+(?:connects|meets|crunches|slams|bites)\b|claws?\s+(?:catch|rake|tear|dig)\b|critical\s+hit|you\s+(?:hit|miss|strike|wound)\s+(?:the|him|her|it|them))\b/i.exec(
         prose,
       );
     if (combatClaim) {
       violations.push({
         claim: combatClaim[0],
-        problem: "combat outcome narrated but no attack/check/roll/cast tool was called this turn",
+        problem:
+          "combat contact narrated but no attack/check/roll/cast tool was called this turn — make it real with tools or end on the threat before contact",
       });
     }
   }

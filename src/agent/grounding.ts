@@ -10,6 +10,7 @@ export const GROUNDING_SYSTEM_PROMPT = `You check a Dungeon Master's narration a
 
 Flag only clear contradictions:
 - A named mechanical outcome (hit/miss, success/failure, death, damage) that DISAGREES with the event log
+- Physical combat contact — a creature attacking, being struck, wounded, or killed — narrated when the event log has NO attack, cast_spell, spawn_monster, or start_combat events at all
 - Arriving at or describing a place that is not the current scene and was not moved to this turn
 - Using a proper name or secret that is not in the known-canon list or this turn's events
 - A mechanical number that appears NOWHERE in the event log

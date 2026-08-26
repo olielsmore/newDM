@@ -165,10 +165,10 @@ export class DmAgent {
         content:
           `[SYSTEM CHECK — the player did not see this] Your narration has problems:\n` +
           violations.map((v) => `- "${v.claim}": ${v.problem}`).join("\n") +
-          `\n\nWhat ACTUALLY happened this turn (the only mechanical truth):\n${digest || "(no tool events — so narrate no mechanical outcomes at all)"}\n\n` +
-          `Rewrite the narration FROM SCRATCH so it matches these events exactly. Every number must be copied from them; never reuse a number from your draft. ` +
-          `If a mechanical action you narrated has no event, either call the ONE missing tool for it now or drop it from the prose. ` +
-          `A correction is an alignment, not an escalation: do not spawn monsters, start fights, move scenes, or introduce anything new that your draft did not narrate. ` +
+          `\n\nWhat ACTUALLY happened this turn (the only mechanical truth):\n${digest || "(no tool events)"}\n\n` +
+          `Rewrite the narration FROM SCRATCH so it matches the events exactly. Every number must be copied from them; never reuse a number from your draft. ` +
+          `If your draft narrated mechanics with no matching event, you have exactly two options: (a) make it real — call the tools your draft implied (spawn_monster / start_combat / attack / ability_check / move_scene), then narrate their actual results; or (b) pull the prose back to the moment before that action resolved and end on the threat instead. ` +
+          `Never invent anything beyond what your draft narrated, and never keep an outcome no tool produced. ` +
           `If a flagged line was actually consistent with the events, keep it. Same events, same voice.`,
       });
       let correctedProse = "";
