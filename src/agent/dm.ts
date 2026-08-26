@@ -155,6 +155,7 @@ export class DmAgent {
     };
 
     let violations = await collectViolations(prose);
+    const draftViolations = violations.map((v) => `"${v.claim}": ${v.problem}`);
     let corrected = false;
     for (let round = 0; round < 2 && violations.length > 0; round++) {
       hooks.onCorrection?.();
@@ -204,6 +205,7 @@ export class DmAgent {
       diceTouched,
       wordCount: prose.trim().split(/\s+/).filter(Boolean).length,
       latencyMs: Date.now() - started,
+      draftViolations,
     };
     recordTurnMetrics(this.db, metrics);
 

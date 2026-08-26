@@ -8,6 +8,8 @@ export interface TurnMetrics {
   diceTouched: boolean;
   wordCount: number;
   latencyMs: number;
+  /** What the first draft was flagged for (empty when it passed clean). */
+  draftViolations?: string[];
 }
 
 export function recordTurnMetrics(db: GameDb, metrics: TurnMetrics): void {

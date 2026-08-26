@@ -12,7 +12,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "dev": "tsx src/server/index.ts",
-    "ui": "pnpm --dir web dev"
+    "ui": "pnpm --dir web dev",
+    "cassette:record": "tsx src/llm/record-cassette.ts"
   },
   "packageManager": "pnpm@10.33.3",
   "pnpm": {

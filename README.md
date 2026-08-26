@@ -13,14 +13,16 @@ Exact contracts, no silent guessing: a wrong place or character id is an error l
 ```bash
 pnpm install
 export OPENAI_API_KEY=sk-...
-pnpm models:check    # verifies gpt-4o and gpt-4o-mini on this key
+pnpm models:check    # verifies the configured models respond on this key
 pnpm seed            # fixture world (destroys the current save)
 pnpm play            # terminal table
 pnpm serve           # API on :8787
 pnpm --dir web install && pnpm --dir web dev   # UI on :5173
 ```
 
-Models (env-configurable): `DM_MODEL=gpt-4o`, `SCRIBE_MODEL=gpt-4o-mini`.
+Models (env-configurable): `DM_MODEL=gpt-5.4` (DM voice + tool use), `SCRIBE_MODEL=gpt-5.4-mini` (scribe, grounding, player model). GPT-4o-era models are markedly worse at tool discipline here — they narrate fights they never rolled.
+
+Golden cassette: `pnpm cassette:record` captures a short live session call-for-call into `test/cassettes/`; `pnpm test` replays it through the full agent loop with no API key and fails on any drift.
 
 Slash commands in the CLI: `/sheet` `/scene` `/canon <query>` `/events` `/quit`.
 
