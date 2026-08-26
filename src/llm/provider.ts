@@ -95,8 +95,17 @@ export class OpenAiProvider implements Provider {
     const decoder = new TextDecoder();
     let buffer = "";
     for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
+      let chunk: { done: boolean; value?: Uint8Array };
+      try {
+        chunk = await reader.read();
+      } catch (err) {
+        // Stream dropped mid-response. Tools may already have run, so a
+        // partial narration beats losing the turn; an empty one is a failure.
+        if (text.trim()) break;
+        throw err;
+      }
+      const { done, value } = chunk;
+      if (done || !value) break;
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split("\n");
       buffer = lines.pop() ?? "";

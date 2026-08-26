@@ -93,6 +93,17 @@ export class ToolExecutor {
     );
   }
 
+  private static INCAPACITATING = ["paralyzed", "stunned", "unconscious", "incapacitated", "petrified"];
+
+  private requireCanAct(actor: { id: string; name: string; conditions: string[] }) {
+    const blocking = actor.conditions.find((c) =>
+      ToolExecutor.INCAPACITATING.includes(c.toLowerCase()),
+    );
+    if (blocking) {
+      throw new Error(`${actor.name} is ${blocking} and cannot take actions. Narrate the helplessness; do not resolve an action for them.`);
+    }
+  }
+
   private consumeIfCombat(id: string, slot: EconomySlot) {
     const combat = this.db.getCombat();
     if (!combat?.active) return;
@@ -142,7 +153,12 @@ export class ToolExecutor {
           const attacker = this.character(args.attackerId as string, false);
           const target = this.character(args.targetId as string, false);
           this.requireCombatForHostility(attacker.kind, target.kind);
+          this.requireCanAct(attacker);
           this.consumeIfCombat(attacker.id, "action");
+          // A paralyzed or unconscious defender cannot dodge (assume melee range).
+          const targetHelpless = target.conditions.some((c) =>
+            ToolExecutor.INCAPACITATING.includes(c.toLowerCase()),
+          );
           const attackName = args.attackName as string | undefined;
           const attack = attackName
             ? attacker.attacks.find((a) => a.name.toLowerCase() === attackName.toLowerCase())
@@ -156,7 +172,7 @@ export class ToolExecutor {
             );
           }
           const res = resolveAttack(rng, attacker, target, attack, {
-            advantage: Boolean(args.advantage),
+            advantage: Boolean(args.advantage) || targetHelpless,
             disadvantage: Boolean(args.disadvantage),
           });
           let application;
@@ -166,7 +182,7 @@ export class ToolExecutor {
             this.db.saveCharacter(target);
             extras = this.afterDamage(target.id, application.amount);
           }
-          return { ...res, applied: application, ...extras };
+          return { ...res, ...(targetHelpless ? { targetHelpless: true, advantage: true } : {}), applied: application, ...extras };
         }
 
         case "cast_spell": {
@@ -185,6 +201,7 @@ export class ToolExecutor {
           if (dealsDamage && target && target.id !== caster.id) {
             this.requireCombatForHostility(caster.kind, target.kind);
           }
+          this.requireCanAct(caster);
           this.consumeIfCombat(caster.id, definition.economy);
           const combat = this.db.getCombat();
           const result = castSpell(rng, caster, target, definition, combat?.round);

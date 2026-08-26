@@ -1,0 +1,14 @@
+I fight to break the paralysis and pray to the Dawnfather for strength.
+I cast Guiding Bolt at the ghoul closest to me.
+I press the attack with my mace.
+I keep swinging until they stop moving.
+I finish the fight however I can.
+/sheet
+I catch my breath, drink my Potion of Healing, and call out to Derva that it is safe now.
+I ask Derva what really happened down here, and what Greely did.
+I help Derva gather anything worth taking from the camp - supplies, valuables, her tools - before we head for the surface.
+/sheet
+I lead Derva back up out of the warrens toward the entrance and the road home.
+/scene
+/events
+/quit
