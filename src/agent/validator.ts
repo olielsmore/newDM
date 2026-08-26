@@ -140,6 +140,14 @@ export function validateNarration(prose: string, events: GameEvent[], ctx: Scene
     }
   }
 
+  const metaText = /\[[^\]\n]*\b(?:result|rolls?|damage|DC|hit|miss)\b[^\]\n]*\]/i.exec(prose);
+  if (metaText) {
+    violations.push({
+      claim: metaText[0].slice(0, 80),
+      problem: "bracketed mechanical meta-text in the prose — weave results into the narration naturally",
+    });
+  }
+
   if (!hadMechanicalEvent) {
     const combatClaim =
       /\b(?:your\s+(?:attack|blow|strike|blade|arrow|spell)\s+(?:hits|lands|connects|misses)|critical\s+hit|you\s+(?:hit|miss)\s+(?:the|him|her|it|them))\b/i.exec(

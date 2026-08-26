@@ -9,7 +9,7 @@ import { Provider, ChatMessage } from "../llm/provider.js";
 import { DM_SYSTEM_PROMPT, OPENING_INSTRUCTION } from "./prompts.js";
 import { buildContextBlock } from "./context.js";
 import { validateNarration, numbersFromEvents, wordBudgetFor, Violation } from "./validator.js";
-import { llmGrounding } from "./grounding.js";
+import { llmGrounding, eventDigest } from "./grounding.js";
 import { runScribe, maybeUpdateSummary } from "./scribe.js";
 import { classifyPillar } from "./player-model.js";
 import { recordTurnMetrics, TurnMetrics } from "./metrics.js";
@@ -144,10 +144,12 @@ export class DmAgent {
       // that IS in the event log. Numbers are checked deterministically above,
       // so any grounding flag whose numbers all trace to events is noise.
       const eventNumbers = numbersFromEvents(events);
-      grounded = grounded.filter((v) => {
-        const nums = (v.claim.match(/\d+/g) ?? []).map(Number);
-        return nums.length === 0 || nums.some((n) => !eventNumbers.has(n));
-      });
+      grounded = grounded
+        .filter((v) => {
+          const nums = (v.claim.match(/\d+/g) ?? []).map(Number);
+          return nums.length === 0 || nums.some((n) => !eventNumbers.has(n));
+        })
+        .map((v) => ({ ...v, problem: `(grounding) ${v.problem}` }));
       const seen = new Set(deterministic.map((v) => v.claim + v.problem));
       return [...deterministic, ...grounded.filter((v) => !seen.has(v.claim + v.problem))];
     };
@@ -157,13 +159,17 @@ export class DmAgent {
     for (let round = 0; round < 2 && violations.length > 0; round++) {
       hooks.onCorrection?.();
       messages.push({ role: "assistant", content: prose });
+      const digest = eventDigest(this.db.eventsForTurn(turn));
       messages.push({
         role: "user",
         content:
           `[SYSTEM CHECK — the player did not see this] Your narration has problems:\n` +
           violations.map((v) => `- "${v.claim}": ${v.problem}`).join("\n") +
-          `\nFix them: call any tools you skipped, then rewrite the narration FROM SCRATCH grounded in the actual tool results. ` +
-          `Every number you narrate must be copied from a tool result this turn — never reuse a number from your draft. Same events, same voice.`,
+          `\n\nWhat ACTUALLY happened this turn (the only mechanical truth):\n${digest || "(no tool events — so narrate no mechanical outcomes at all)"}\n\n` +
+          `Rewrite the narration FROM SCRATCH so it matches these events exactly. Every number must be copied from them; never reuse a number from your draft. ` +
+          `If a mechanical action you narrated has no event, either call the ONE missing tool for it now or drop it from the prose. ` +
+          `A correction is an alignment, not an escalation: do not spawn monsters, start fights, move scenes, or introduce anything new that your draft did not narrate. ` +
+          `If a flagged line was actually consistent with the events, keep it. Same events, same voice.`,
       });
       let correctedProse = "";
       for (let i = 0; i < 4; i++) {
