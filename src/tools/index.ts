@@ -322,6 +322,18 @@ export class ToolExecutor {
             const current = this.db.getPlace(scene.placeId);
             const legal = current?.exits ?? [];
             if (wanted !== scene.placeId && !legal.some((e) => e.to === wanted)) {
+              const asCharacter = (() => {
+                try {
+                  return this.db.resolveCharacter(wanted);
+                } catch {
+                  return undefined;
+                }
+              })();
+              if (asCharacter) {
+                throw new Error(
+                  `"${wanted}" is a character (${asCharacter.name}), not a place. To bring them into this scene, call move_scene with addPresent: ["${asCharacter.id}"] and no placeId.`,
+                );
+              }
               const listed = legal.map((e) => `${e.to} (${e.description})`).join("; ") || "(none)";
               throw new Error(
                 `Cannot move to "${wanted}" from ${scene.placeId}. Legal exits: ${listed}. Use an exact id from this list.`,

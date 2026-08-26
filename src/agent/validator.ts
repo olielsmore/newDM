@@ -148,6 +148,19 @@ export function validateNarration(prose: string, events: GameEvent[], ctx: Scene
     });
   }
 
+  // Fourth-wall breaks: engine machinery must never reach the player.
+  const fourthWall =
+    /\b(?:scene[- ]?ids?|place[- ]?ids?|character[- ]?ids?|tool[- ]calls?|game engine|system prompt|as an AI|move_scene|get_scene|get_character|canon_write|canon_search|spawn_monster|start_combat|next_combat_turn|end_combat|cast_spell|apply_effect|ability_check|saving_throw|reveal_secret|find_monsters|find_items|suggest_encounter|death_save)\b/i.exec(
+      prose,
+    );
+  if (fourthWall) {
+    violations.push({
+      claim: fourthWall[0],
+      problem:
+        "fourth-wall break — narration mentions engine machinery (tools/ids/system). Stay in the fiction; fix tool calls silently and narrate only the world",
+    });
+  }
+
   if (!hadMechanicalEvent) {
     const combatClaim =
       /\b(?:your\s+(?:attack|blow|strike|blade|arrow|spell|mace|sword|axe|hammer)\s+(?:hits|lands|connects|meets|catches|crunches|misses)|(?:mace|blade|sword|axe|hammer|weapon|steel|metal)\s+(?:connects|meets|crunches|slams|bites)\b|claws?\s+(?:catch|rake|tear|dig)\b|critical\s+hit|you\s+(?:hit|miss|strike|wound)\s+(?:the|him|her|it|them))\b/i.exec(
