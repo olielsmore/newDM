@@ -442,6 +442,10 @@ export class GameDb {
       .all(subject) as CanonFact[];
   }
 
+  allHiddenCanon(): CanonFact[] {
+    return this.db.prepare("SELECT * FROM canon WHERE hidden = 1 ORDER BY id").all() as CanonFact[];
+  }
+
   revealCanon(id: number): CanonFact | undefined {
     this.db.prepare("UPDATE canon SET hidden = 0 WHERE id = ?").run(id);
     return this.db.prepare("SELECT * FROM canon WHERE id = ?").get(id) as CanonFact | undefined;

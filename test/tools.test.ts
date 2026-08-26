@@ -69,15 +69,29 @@ describe("tools", () => {
     expect(db.getScene()?.present).toContain("goblin-1");
   });
 
+  it("attacking a monster outside combat is refused", () => {
+    const tools = new ToolExecutor(db, 1);
+    tools.execute("spawn_monster", { monster: "goblin" });
+    expect(() => tools.execute("attack", { attackerId: "sera", targetId: "goblin-1" })).toThrow(/start_combat/);
+  });
+
   it("attack tool resolves and applies damage to stored sheet", () => {
     const tools = new ToolExecutor(db, 1);
     tools.execute("spawn_monster", { monster: "goblin" });
+    tools.execute("start_combat", {});
     type AttackOut = { hit: boolean; applied?: { hpAfter: number } };
     let result: AttackOut | undefined;
-    // Keep attacking until something hits (deterministic rng advances each call).
-    for (let i = 0; i < 10; i++) {
+    // Attack once per round on Sera's turn until something hits
+    // (deterministic rng advances each call).
+    for (let i = 0; i < 40; i++) {
+      const scene = tools.execute("get_scene", {}) as { combat: { currentId: string } };
+      if (scene.combat.currentId !== "sera") {
+        tools.execute("next_combat_turn", {});
+        continue;
+      }
       result = tools.execute("attack", { attackerId: "sera", targetId: "goblin-1" }) as AttackOut;
       if (result.hit) break;
+      tools.execute("next_combat_turn", {});
     }
     expect(result!.hit).toBe(true);
     const goblin = db.getCharacter("goblin-1")!;

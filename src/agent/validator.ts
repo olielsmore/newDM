@@ -10,7 +10,7 @@ export interface Violation {
   problem: string;
 }
 
-function numbersFromEvents(events: GameEvent[]): Set<number> {
+export function numbersFromEvents(events: GameEvent[]): Set<number> {
   const nums = new Set<number>();
   const walk = (value: unknown): void => {
     if (typeof value === "number" && Number.isFinite(value)) nums.add(value);
@@ -140,15 +140,24 @@ export function validateNarration(prose: string, events: GameEvent[], ctx: Scene
     }
   }
 
+  const metaText = /\[[^\]\n]*\b(?:result|rolls?|damage|DC|hit|miss)\b[^\]\n]*\]/i.exec(prose);
+  if (metaText) {
+    violations.push({
+      claim: metaText[0].slice(0, 80),
+      problem: "bracketed mechanical meta-text in the prose — weave results into the narration naturally",
+    });
+  }
+
   if (!hadMechanicalEvent) {
     const combatClaim =
-      /\b(?:your\s+(?:attack|blow|strike|blade|arrow|spell)\s+(?:hits|lands|connects|misses)|critical\s+hit|you\s+(?:hit|miss)\s+(?:the|him|her|it|them))\b/i.exec(
+      /\b(?:your\s+(?:attack|blow|strike|blade|arrow|spell|mace|sword|axe|hammer)\s+(?:hits|lands|connects|meets|catches|crunches|misses)|(?:mace|blade|sword|axe|hammer|weapon|steel|metal)\s+(?:connects|meets|crunches|slams|bites)\b|claws?\s+(?:catch|rake|tear|dig)\b|critical\s+hit|you\s+(?:hit|miss|strike|wound)\s+(?:the|him|her|it|them))\b/i.exec(
         prose,
       );
     if (combatClaim) {
       violations.push({
         claim: combatClaim[0],
-        problem: "combat outcome narrated but no attack/check/roll/cast tool was called this turn",
+        problem:
+          "combat contact narrated but no attack/check/roll/cast tool was called this turn — make it real with tools or end on the threat before contact",
       });
     }
   }

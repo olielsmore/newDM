@@ -95,6 +95,14 @@ function retrievedCanon(db: GameDb, playerInput: string): string {
     .join("\n");
 }
 
+function hiddenTruths(db: GameDb): string {
+  const secrets = db.allHiddenCanon();
+  if (secrets.length === 0) return "";
+  return secrets
+    .map((s) => `- subject "${s.subject}": ${s.fact}`)
+    .join("\n");
+}
+
 function openingPhrases(db: GameDb): string {
   return db
     .recentTurns(3)
@@ -154,10 +162,16 @@ export function buildContextBlock(db: GameDb, playerInput: string): string {
   const summary = db.getMeta("session_summary") ?? "";
   const direction = stageDirection(db);
   const avoided = openingPhrases(db);
+  const secrets = hiddenTruths(db);
   return contextBlock([
     { title: "Player character (live from the database)", body: sheetSnapshot(db) },
     { title: "Current scene (live from the database)", body: sceneSnapshot(db) },
     { title: "Known canon (do not contradict; you may build on it). Secrets are NOT listed here.", body: retrievedCanon(db, playerInput) },
+    {
+      title:
+        "DM-only truths (the player has NOT earned these). These are what is actually going on — never contradict them, never invent a different truth. Foreshadow freely. When play earns a disclosure, FIRST call reveal_secret with the exact subject shown, THEN narrate it.",
+      body: secrets,
+    },
     { title: "Session so far", body: summary },
     { title: "Do not open like these recent lines", body: avoided },
     { title: "Stage direction (private, never mention)", body: direction },

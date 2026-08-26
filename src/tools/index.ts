@@ -79,6 +79,20 @@ export class ToolExecutor {
     return extras;
   }
 
+  /**
+   * Fights run on the combat state machine, not ad-hoc swings. Any attack or
+   * damaging spell where a monster is involved requires active combat so
+   * initiative, action economy, and monster turns actually happen.
+   */
+  private requireCombatForHostility(...kinds: string[]) {
+    if (!kinds.includes("monster")) return;
+    const combat = this.db.getCombat();
+    if (combat?.active) return;
+    throw new Error(
+      "Combat has not started. Call start_combat first (it rolls initiative for everyone present), then act on the current combatant's turn.",
+    );
+  }
+
   private consumeIfCombat(id: string, slot: EconomySlot) {
     const combat = this.db.getCombat();
     if (!combat?.active) return;
@@ -127,6 +141,7 @@ export class ToolExecutor {
         case "attack": {
           const attacker = this.character(args.attackerId as string, false);
           const target = this.character(args.targetId as string, false);
+          this.requireCombatForHostility(attacker.kind, target.kind);
           this.consumeIfCombat(attacker.id, "action");
           const attackName = args.attackName as string | undefined;
           const attack = attackName
@@ -160,13 +175,17 @@ export class ToolExecutor {
           if (!rec) throw new Error(`No spell "${args.spell}" in content. Use lookup or the caster's spellsKnown.`);
           const definition = rec.definition ? parseSpellDefinition(rec.definition) : null;
           if (!definition) throw new Error(`Spell "${rec.name}" has no structured definition yet — do not improvise its mechanics.`);
-          this.consumeIfCombat(caster.id, definition.economy);
           const targetId = args.targetId ? String(args.targetId) : undefined;
           const target = targetId
             ? this.character(targetId, false).id === caster.id
               ? caster
               : this.character(targetId, false)
             : undefined;
+          const dealsDamage = definition.effects.some((e) => e.kind === "damage" || e.kind === "attack" || e.kind === "save");
+          if (dealsDamage && target && target.id !== caster.id) {
+            this.requireCombatForHostility(caster.kind, target.kind);
+          }
+          this.consumeIfCombat(caster.id, definition.economy);
           const combat = this.db.getCombat();
           const result = castSpell(rng, caster, target, definition, combat?.round);
           this.db.saveCharacter(caster);
