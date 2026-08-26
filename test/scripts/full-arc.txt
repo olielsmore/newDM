@@ -1,0 +1,16 @@
+I look around the tavern, then ask Marla what has been happening in Emberhollow since I left.
+I walk over to Greely, sit down across from him, and press him about the mine. I want to know what he is hiding, and I am watching his face closely.
+/scene
+I finish my drink, say goodbye to Marla, and head out onto the mine road.
+I follow the road up to the warrens entrance, light a torch, and step inside.
+I move carefully into the gallery, listening hard for anything moving in the dark.
+I cast Guiding Bolt at the nearest ghoul.
+I swing my mace at the closest ghoul and keep my shield up.
+I keep fighting. Mace again, and I back toward the wall so nothing can flank me.
+/sheet
+I press deeper into the warrens looking for Derva, calling her name.
+I ask Derva what really happened down here. I tell her Greely would not give me a straight answer.
+I search the gallery and the camp for anything useful before we leave - supplies, valuables, anything the miners left behind.
+/sheet
+/events
+/quit

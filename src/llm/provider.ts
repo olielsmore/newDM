@@ -25,8 +25,28 @@ export interface Provider {
   chat(opts: ChatOptions): Promise<ChatResult>;
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * How long to wait before retrying a rate-limited request. Prefers the
+ * Retry-After header, then OpenAI's "Please try again in 1.23s" message,
+ * then exponential backoff.
+ */
+function retryDelayMs(res: Response, errText: string, attempt: number): number {
+  const header = res.headers.get("retry-after");
+  if (header && Number.isFinite(Number(header))) return Number(header) * 1000;
+  const match = errText.match(/try again in ([\d.]+)(ms|s)/i);
+  if (match) {
+    const raw = Number(match[1]);
+    return match[2].toLowerCase() === "ms" ? raw : raw * 1000;
+  }
+  return Math.min(1000 * 2 ** attempt, 20000);
+}
+
 /** OpenAI-compatible chat completions over fetch. Works with OpenAI and most gateways. */
 export class OpenAiProvider implements Provider {
+  private static MAX_RETRIES = 5;
+
   constructor(
     private apiKey: string,
     private model: string,
@@ -48,14 +68,22 @@ export class OpenAiProvider implements Provider {
       }));
     }
 
-    const res = await fetch(`${this.baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${this.apiKey}` },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok || !res.body) {
+    // Retry 429s and transient 5xxs before any of the stream has been
+    // consumed; once streaming starts a failure is surfaced to the caller.
+    let res: Response;
+    for (let attempt = 0; ; attempt++) {
+      res = await fetch(`${this.baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${this.apiKey}` },
+        body: JSON.stringify(body),
+      });
+      if (res.ok && res.body) break;
       const errText = await res.text().catch(() => "");
-      throw new Error(`LLM request failed (${res.status}): ${errText.slice(0, 500)}`);
+      const retryable = res.status === 429 || res.status >= 500;
+      if (!retryable || attempt >= OpenAiProvider.MAX_RETRIES) {
+        throw new Error(`LLM request failed (${res.status}): ${errText.slice(0, 500)}`);
+      }
+      await sleep(retryDelayMs(res, errText, attempt) + 250);
     }
 
     let text = "";
