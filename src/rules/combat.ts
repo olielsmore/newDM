@@ -68,6 +68,19 @@ export function advanceTurn(state: CombatState): { wrapped: boolean; expired: st
   return { wrapped, expired: [] };
 }
 
+/**
+ * Insert a combatant at their initiative position without disturbing whose
+ * turn it currently is (re-sorting under currentIndex would shift the turn).
+ */
+export function addCombatant(state: CombatState, id: string, initiative: number): void {
+  if (state.order.some((o) => o.id === id)) return;
+  let idx = state.order.findIndex((o) => o.initiative < initiative);
+  if (idx === -1) idx = state.order.length;
+  state.order.splice(idx, 0, { id, initiative });
+  if (idx <= state.currentIndex) state.currentIndex += 1;
+  state.economy[id] = emptyEconomy();
+}
+
 export function removeCombatant(state: CombatState, id: string): void {
   const idx = state.order.findIndex((c) => c.id === id);
   if (idx === -1) return;

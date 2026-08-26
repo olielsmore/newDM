@@ -15,6 +15,7 @@ import {
   advanceTurn,
   consumeEconomy,
   currentCombatant,
+  addCombatant,
   removeCombatant,
   expireConditions,
   concentrationDc,
@@ -343,11 +344,23 @@ export class ToolExecutor {
             this.db.saveScene(scene);
             return { moved: true, scene, sensoryDetail: sensory, exits: place.exits, tags: place.tags, visitNumber: visits + 1 };
           }
-          for (const id of (args.addPresent as string[]) ?? []) if (!scene.present.includes(id)) scene.present.push(id);
+          const joined: { id: string; initiative: number }[] = [];
+          for (const id of (args.addPresent as string[]) ?? []) {
+            const sheet = this.db.resolveCharacter(id);
+            if (!scene.present.includes(sheet.id)) scene.present.push(sheet.id);
+            // Anyone entering a live fight rolls initiative and joins it.
+            const combat = this.db.getCombat();
+            if (combat?.active && !combat.order.some((o) => o.id === sheet.id)) {
+              const init = d20(rng, { modifier: Math.floor((sheet.abilities.dex - 10) / 2) }).total;
+              addCombatant(combat, sheet.id, init);
+              this.db.saveCombat(combat);
+              joined.push({ id: sheet.id, initiative: init });
+            }
+          }
           for (const id of (args.removePresent as string[]) ?? []) scene.present = scene.present.filter((p) => p !== id);
           if (args.time) scene.time = String(args.time);
           this.db.saveScene(scene);
-          return { moved: false, scene };
+          return { moved: false, scene, ...(joined.length ? { joinedCombat: joined } : {}) };
         }
 
         case "lookup": {
@@ -426,9 +439,7 @@ export class ToolExecutor {
           const combat = this.db.getCombat();
           if (combat?.active) {
             const init = d20(rng, { modifier: Math.floor((sheet.abilities.dex - 10) / 2) }).total;
-            combat.order.push({ id, initiative: init });
-            combat.order.sort((a, b) => b.initiative - a.initiative);
-            combat.economy[id] = { action: true, bonus: true, movement: true, reaction: true };
+            addCombatant(combat, id, init);
             this.db.saveCombat(combat);
           }
           return { id, name: label, hp: sheet.hp, ac: sheet.ac };
