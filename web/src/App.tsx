@@ -11,6 +11,7 @@ import {
 } from "./api";
 
 type Tab = "canon" | "events" | "combat" | "metrics";
+type PhonePane = "play" | "sheet" | "table";
 
 interface ToolLine {
   name: string;
@@ -87,6 +88,7 @@ export function App() {
   const [turns, setTurns] = useState<TurnRow[] | null>(null);
   const [metrics, setMetrics] = useState<Record<string, number> | null>(null);
   const [tab, setTab] = useState<Tab>("canon");
+  const [phonePane, setPhonePane] = useState<PhonePane>("play");
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [live, setLive] = useState("");
@@ -192,185 +194,313 @@ export function App() {
     await refresh();
   }
 
+  const sheetPanel = <SheetPanel sheet={sheet} scene={scene} onReset={onReset} />;
+  const chatPanel = (
+    <ChatPanel
+      chat={chat}
+      live={live}
+      busy={busy}
+      tools={tools}
+      input={input}
+      setInput={setInput}
+      submit={submit}
+      bottom={bottom}
+    />
+  );
+  const tablePanel = (
+    <TablePanel
+      tab={tab}
+      setTab={setTab}
+      canon={canon}
+      events={events}
+      tools={tools}
+      scene={scene}
+      metrics={metrics}
+      turns={turns}
+    />
+  );
+
   return (
-    <div className="min-h-screen grid grid-cols-1 lg:grid-cols-[280px_1fr_340px]">
-      <aside className="border-r border-rule bg-panel p-4 space-y-4">
-        <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-muted">Character</p>
-          <h1 className="text-xl text-ember">{sheet?.name ?? "…"}</h1>
-          <p className="text-sm text-muted">
-            Level {sheet?.level} {sheet?.race} {sheet?.className}
-          </p>
-        </div>
-        {sheet && <HpBar hp={sheet.hp} max={sheet.maxHp} ac={sheet.ac} />}
-        {sheet && (
-          <div className="text-sm space-y-1">
-            <p>
-              Slots{" "}
-              {Object.entries(sheet.spellSlots)
-                .map(([lvl, s]) => `L${lvl} ${s.max - s.used}/${s.max}`)
-                .join(" · ") || "—"}
-            </p>
-            {sheet.conditions.length > 0 && (
-              <p className="text-blood">Conditions: {sheet.conditions.join(", ")}</p>
-            )}
-            {sheet.concentrating && <p className="text-ember">Concentrating: {sheet.concentrating.spell}</p>}
-            <p className="text-muted leading-snug">
-              {sheet.inventory.map((i) => (i.qty > 1 ? `${i.name} ×${i.qty}` : i.name)).join(" · ")}
-            </p>
+    <div className="h-dvh bg-ink text-parchment">
+      {/* Phone: one pane at a time, input stays in the play view, tabs at the bottom. */}
+      <div className="lg:hidden h-full flex flex-col">
+        <header className="shrink-0 border-b border-rule px-4 py-2.5 flex items-center justify-between gap-3 pt-[max(0.625rem,env(safe-area-inset-top))]">
+          <div className="min-w-0">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-muted">The Saltmine Warrens</p>
+            <h1 className="text-base text-ember truncate">{sheet?.name ?? "…"}</h1>
           </div>
-        )}
-        <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-muted mb-1">Here</p>
-          <p className="font-semibold">{scene?.scene.name}</p>
-          <p className="text-sm text-muted">{scene?.scene.time}</p>
-          <p className="text-sm mt-2 leading-snug">{scene?.scene.description}</p>
-        </div>
-        <button onClick={onReset} className="text-xs uppercase tracking-widest text-muted hover:text-parchment">
-          Reset fixture
-        </button>
-      </aside>
-
-      <main className="flex flex-col min-h-screen">
-        <header className="border-b border-rule px-6 py-3 flex justify-between items-baseline">
-          <h2 className="tracking-wide">The Saltmine Warrens</h2>
-          <p className="text-xs text-muted">Sable is listening · ids come from the tools, never from guesswork</p>
-        </header>
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-          {chat.map((line, i) => (
-            <article key={i} className={line.role === "player" ? "text-right" : ""}>
-              <p className="text-[10px] uppercase tracking-widest text-muted mb-1">
-                {line.role === "player" ? "You" : line.role === "dm" ? "Sable" : "Table"}
-              </p>
-              {line.tools && line.tools.length > 0 && (
-                <div className="flex flex-wrap gap-1 mb-2 max-w-[40rem]">
-                  {line.tools.map((t, j) => (
-                    <span key={j} className="text-[11px] font-mono bg-ink border border-rule text-moss px-2 py-0.5">
-                      🎲 {toolChip(t)}
-                    </span>
-                  ))}
-                </div>
-              )}
-              <div
-                className={
-                  line.role === "player"
-                    ? "inline-block max-w-[36rem] text-left bg-ink border border-rule px-4 py-2"
-                    : line.role === "system"
-                      ? "text-sm text-ember italic"
-                      : "max-w-[40rem] leading-relaxed whitespace-pre-wrap"
-                }
-              >
-                {line.text}
-              </div>
-            </article>
-          ))}
-          {(live || (busy && tools.length > 0)) && (
-            <article>
-              <p className="text-[10px] uppercase tracking-widest text-muted mb-1">Sable</p>
-              {busy && tools.filter((t) => DICE_TOOLS.has(t.name)).length > 0 && (
-                <div className="flex flex-wrap gap-1 mb-2 max-w-[40rem]">
-                  {tools
-                    .filter((t) => DICE_TOOLS.has(t.name))
-                    .map((t, j) => (
-                      <span key={j} className="text-[11px] font-mono bg-ink border border-rule text-moss px-2 py-0.5">
-                        🎲 {toolChip(t)}
-                      </span>
-                    ))}
-                </div>
-              )}
-              {live && <div className="max-w-[40rem] leading-relaxed whitespace-pre-wrap">{live}</div>}
-            </article>
+          {sheet && (
+            <div className="shrink-0 w-28">
+              <HpBar hp={sheet.hp} max={sheet.maxHp} ac={sheet.ac} compact />
+            </div>
           )}
-          <div ref={bottom} />
+        </header>
+        <div className="flex-1 min-h-0 overflow-hidden">
+          {phonePane === "play" && chatPanel}
+          {phonePane === "sheet" && <div className="h-full overflow-y-auto p-4 space-y-4 bg-panel">{sheetPanel}</div>}
+          {phonePane === "table" && <div className="h-full overflow-hidden flex flex-col">{tablePanel}</div>}
         </div>
-        <form onSubmit={submit} className="border-t border-rule p-4 flex gap-3">
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                void submit();
-              }
-            }}
-            rows={2}
-            placeholder={busy ? "The dice are in the air…" : "What do you do?"}
-            disabled={busy}
-            className="flex-1 bg-ink border border-rule px-3 py-2 text-parchment outline-none focus:border-ember resize-none"
-          />
-          <button
-            type="submit"
-            disabled={busy}
-            className="px-4 bg-ember text-ink font-semibold uppercase tracking-widest text-sm disabled:opacity-50"
-          >
-            {busy ? "…" : "Play"}
-          </button>
-        </form>
-      </main>
-
-      <aside className="border-l border-rule bg-panel flex flex-col min-h-screen">
-        <nav className="flex border-b border-rule text-xs uppercase tracking-widest">
-          {(["canon", "events", "combat", "metrics"] as Tab[]).map((t) => (
+        <nav className="shrink-0 grid grid-cols-3 border-t border-rule bg-panel pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+          {(
+            [
+              ["play", "Play"],
+              ["sheet", "Sheet"],
+              ["table", "Table"],
+            ] as const
+          ).map(([id, label]) => (
             <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`flex-1 py-3 ${tab === t ? "text-ember border-b-2 border-ember" : "text-muted"}`}
+              key={id}
+              type="button"
+              onClick={() => setPhonePane(id)}
+              className={`py-3 text-xs uppercase tracking-widest ${phonePane === id ? "text-ember" : "text-muted"}`}
             >
-              {t}
+              {label}
             </button>
           ))}
         </nav>
-        <div className="flex-1 overflow-y-auto p-4 text-sm space-y-3">
-          {tab === "canon" &&
-            canon.map((f) => (
-              <div key={f.id}>
-                <p className="text-ember text-xs">{f.subject}</p>
-                <p className="text-parchment/90">{f.fact}</p>
-              </div>
-            ))}
-          {tab === "events" && (
-            <>
-              {tools.length > 0 && (
-                <div className="mb-3 pb-3 border-b border-rule">
-                  <p className="text-xs uppercase text-muted mb-2">This turn</p>
-                  {tools.map((t, i) => (
-                    <p key={i} className="text-moss font-mono text-xs leading-relaxed">
-                      {t.name} {JSON.stringify(t.args).slice(0, 80)}
-                    </p>
-                  ))}
-                </div>
-              )}
-              {events
-                .slice()
-                .reverse()
-                .map((e) => (
-                  <p key={e.id} className="font-mono text-xs text-muted">
-                    t{e.turn} {e.kind}
-                  </p>
-                ))}
-            </>
-          )}
-          {tab === "combat" && <CombatPanel scene={scene} />}
-          {tab === "metrics" && metrics && (
-            <dl className="grid grid-cols-2 gap-2">
-              {Object.entries(metrics).map(([k, v]) => (
-                <div key={k}>
-                  <dt className="text-muted text-xs uppercase">{k}</dt>
-                  <dd>{typeof v === "number" ? Number(v.toFixed(2)) : v}</dd>
-                </div>
-              ))}
-              <p className="col-span-2 text-muted text-xs">
-                Turns in this save: {turns?.length ?? 0}. Empty opening is turn 1.
-              </p>
-            </dl>
-          )}
-        </div>
-      </aside>
+      </div>
+
+      {/* Desktop: original three-column table. */}
+      <div className="hidden lg:grid h-full grid-cols-[280px_1fr_340px]">
+        <aside className="border-r border-rule bg-panel p-4 space-y-4 overflow-y-auto">{sheetPanel}</aside>
+        {chatPanel}
+        <aside className="border-l border-rule bg-panel flex flex-col min-h-0">{tablePanel}</aside>
+      </div>
     </div>
   );
 }
 
-function HpBar({ hp, max, ac }: { hp: number; max: number; ac: number }) {
+function SheetPanel({
+  sheet,
+  scene,
+  onReset,
+}: {
+  sheet: Sheet | null;
+  scene: ScenePayload | null;
+  onReset: () => void;
+}) {
+  return (
+    <>
+      <div>
+        <p className="text-xs uppercase tracking-[0.2em] text-muted">Character</p>
+        <h1 className="text-xl text-ember">{sheet?.name ?? "…"}</h1>
+        <p className="text-sm text-muted">
+          Level {sheet?.level} {sheet?.race} {sheet?.className}
+        </p>
+      </div>
+      {sheet && <HpBar hp={sheet.hp} max={sheet.maxHp} ac={sheet.ac} />}
+      {sheet && (
+        <div className="text-sm space-y-1">
+          <p>
+            Slots{" "}
+            {Object.entries(sheet.spellSlots)
+              .map(([lvl, s]) => `L${lvl} ${s.max - s.used}/${s.max}`)
+              .join(" · ") || "—"}
+          </p>
+          {sheet.conditions.length > 0 && (
+            <p className="text-blood">Conditions: {sheet.conditions.join(", ")}</p>
+          )}
+          {sheet.concentrating && <p className="text-ember">Concentrating: {sheet.concentrating.spell}</p>}
+          <p className="text-muted leading-snug">
+            {sheet.inventory.map((i) => (i.qty > 1 ? `${i.name} ×${i.qty}` : i.name)).join(" · ")}
+          </p>
+        </div>
+      )}
+      <div>
+        <p className="text-xs uppercase tracking-[0.2em] text-muted mb-1">Here</p>
+        <p className="font-semibold">{scene?.scene.name}</p>
+        <p className="text-sm text-muted">{scene?.scene.time}</p>
+        <p className="text-sm mt-2 leading-snug">{scene?.scene.description}</p>
+      </div>
+      <button onClick={onReset} className="text-xs uppercase tracking-widest text-muted hover:text-parchment">
+        Reset fixture
+      </button>
+    </>
+  );
+}
+
+function ChatPanel({
+  chat,
+  live,
+  busy,
+  tools,
+  input,
+  setInput,
+  submit,
+  bottom,
+}: {
+  chat: ChatLine[];
+  live: string;
+  busy: boolean;
+  tools: ToolLine[];
+  input: string;
+  setInput: (value: string) => void;
+  submit: (ev?: FormEvent) => Promise<void>;
+  bottom: React.RefObject<HTMLDivElement | null>;
+}) {
+  return (
+    <main className="flex flex-col h-full min-h-0">
+      <header className="hidden lg:flex border-b border-rule px-6 py-3 justify-between items-baseline">
+        <h2 className="tracking-wide">The Saltmine Warrens</h2>
+        <p className="text-xs text-muted">Sable is listening · ids come from the tools, never from guesswork</p>
+      </header>
+      <div className="flex-1 overflow-y-auto px-4 lg:px-6 py-4 space-y-4">
+        {chat.map((line, i) => (
+          <article key={i} className={line.role === "player" ? "text-right" : ""}>
+            <p className="text-[10px] uppercase tracking-widest text-muted mb-1">
+              {line.role === "player" ? "You" : line.role === "dm" ? "Sable" : "Table"}
+            </p>
+            {line.tools && line.tools.length > 0 && (
+              <div className="flex flex-wrap gap-1 mb-2 max-w-[40rem]">
+                {line.tools.map((t, j) => (
+                  <span key={j} className="text-[11px] font-mono bg-ink border border-rule text-moss px-2 py-0.5">
+                    🎲 {toolChip(t)}
+                  </span>
+                ))}
+              </div>
+            )}
+            <div
+              className={
+                line.role === "player"
+                  ? "inline-block max-w-[36rem] text-left bg-ink border border-rule px-4 py-2"
+                  : line.role === "system"
+                    ? "text-sm text-ember italic"
+                    : "max-w-[40rem] leading-relaxed whitespace-pre-wrap"
+              }
+            >
+              {line.text}
+            </div>
+          </article>
+        ))}
+        {(live || (busy && tools.length > 0)) && (
+          <article>
+            <p className="text-[10px] uppercase tracking-widest text-muted mb-1">Sable</p>
+            {busy && tools.filter((t) => DICE_TOOLS.has(t.name)).length > 0 && (
+              <div className="flex flex-wrap gap-1 mb-2 max-w-[40rem]">
+                {tools
+                  .filter((t) => DICE_TOOLS.has(t.name))
+                  .map((t, j) => (
+                    <span key={j} className="text-[11px] font-mono bg-ink border border-rule text-moss px-2 py-0.5">
+                      🎲 {toolChip(t)}
+                    </span>
+                  ))}
+              </div>
+            )}
+            {live && <div className="max-w-[40rem] leading-relaxed whitespace-pre-wrap">{live}</div>}
+          </article>
+        )}
+        <div ref={bottom} />
+      </div>
+      <form onSubmit={submit} className="border-t border-rule p-3 lg:p-4 flex gap-3">
+        <textarea
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              void submit();
+            }
+          }}
+          rows={2}
+          placeholder={busy ? "The dice are in the air…" : "What do you do?"}
+          disabled={busy}
+          enterKeyHint="send"
+          className="flex-1 bg-ink border border-rule px-3 py-2 text-base text-parchment outline-none focus:border-ember resize-none"
+        />
+        <button
+          type="submit"
+          disabled={busy}
+          className="px-4 bg-ember text-ink font-semibold uppercase tracking-widest text-sm disabled:opacity-50"
+        >
+          {busy ? "…" : "Play"}
+        </button>
+      </form>
+    </main>
+  );
+}
+
+function TablePanel({
+  tab,
+  setTab,
+  canon,
+  events,
+  tools,
+  scene,
+  metrics,
+  turns,
+}: {
+  tab: Tab;
+  setTab: (tab: Tab) => void;
+  canon: CanonFact[];
+  events: GameEvent[];
+  tools: ToolLine[];
+  scene: ScenePayload | null;
+  metrics: Record<string, number> | null;
+  turns: TurnRow[] | null;
+}) {
+  return (
+    <>
+      <nav className="flex border-b border-rule text-xs uppercase tracking-widest">
+        {(["canon", "events", "combat", "metrics"] as Tab[]).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`flex-1 py-3 ${tab === t ? "text-ember border-b-2 border-ember" : "text-muted"}`}
+          >
+            {t}
+          </button>
+        ))}
+      </nav>
+      <div className="flex-1 overflow-y-auto p-4 text-sm space-y-3">
+        {tab === "canon" &&
+          canon.map((f) => (
+            <div key={f.id}>
+              <p className="text-ember text-xs">{f.subject}</p>
+              <p className="text-parchment/90">{f.fact}</p>
+            </div>
+          ))}
+        {tab === "events" && (
+          <>
+            {tools.length > 0 && (
+              <div className="mb-3 pb-3 border-b border-rule">
+                <p className="text-xs uppercase text-muted mb-2">This turn</p>
+                {tools.map((t, i) => (
+                  <p key={i} className="text-moss font-mono text-xs leading-relaxed">
+                    {t.name} {JSON.stringify(t.args).slice(0, 80)}
+                  </p>
+                ))}
+              </div>
+            )}
+            {events
+              .slice()
+              .reverse()
+              .map((e) => (
+                <p key={e.id} className="font-mono text-xs text-muted">
+                  t{e.turn} {e.kind}
+                </p>
+              ))}
+          </>
+        )}
+        {tab === "combat" && <CombatPanel scene={scene} />}
+        {tab === "metrics" && metrics && (
+          <dl className="grid grid-cols-2 gap-2">
+            {Object.entries(metrics).map(([k, v]) => (
+              <div key={k}>
+                <dt className="text-muted text-xs uppercase">{k}</dt>
+                <dd>{typeof v === "number" ? Number(v.toFixed(2)) : v}</dd>
+              </div>
+            ))}
+            <p className="col-span-2 text-muted text-xs">
+              Turns in this save: {turns?.length ?? 0}. Empty opening is turn 1.
+            </p>
+          </dl>
+        )}
+      </div>
+    </>
+  );
+}
+
+function HpBar({ hp, max, ac, compact }: { hp: number; max: number; ac: number; compact?: boolean }) {
   const pct = Math.max(0, Math.min(100, (hp / max) * 100));
   return (
     <div>
@@ -380,7 +510,7 @@ function HpBar({ hp, max, ac }: { hp: number; max: number; ac: number }) {
         </span>
         <span>AC {ac}</span>
       </div>
-      <div className="h-2 bg-ink border border-rule">
+      <div className={compact ? "h-1.5 bg-ink border border-rule" : "h-2 bg-ink border border-rule"}>
         <div className="h-full bg-blood" style={{ width: `${pct}%` }} />
       </div>
     </div>

@@ -2,6 +2,7 @@
  * Thin API over the engine. The UI never parses prose for data.
  */
 import { serve } from "@hono/node-server";
+import { serveStatic } from "@hono/node-server/serve-static";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { streamSSE } from "hono/streaming";
@@ -12,6 +13,7 @@ import { seed, DEFAULT_DB_PATH } from "../fixture/seed.js";
 import { summarizeMetrics } from "../agent/metrics.js";
 import { checkModels } from "../llm/check.js";
 import fs from "node:fs";
+import path from "node:path";
 
 export interface Session {
   db: GameDb;
@@ -94,6 +96,12 @@ export function createApp(session: Session): Hono {
     });
   });
 
+  const webRoot = path.resolve(process.cwd(), "web/dist");
+  if (fs.existsSync(path.join(webRoot, "index.html"))) {
+    app.use("/*", serveStatic({ root: "./web/dist" }));
+    app.get("*", serveStatic({ path: "./web/dist/index.html" }));
+  }
+
   return app;
 }
 
@@ -102,7 +110,8 @@ export async function startServer(opts: { port?: number; skipModelCheck?: boolea
   const session = opts.session ?? createSession();
   const app = createApp(session);
   const port = opts.port ?? Number(process.env.PORT ?? 8787);
-  serve({ fetch: app.fetch, port });
+  const hostname = process.env.HOST ?? "0.0.0.0";
+  serve({ fetch: app.fetch, port, hostname });
   return { port, session };
 }
 

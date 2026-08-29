@@ -42,4 +42,25 @@ describe("API", () => {
     expect(facts.every((f: { hidden?: number }) => f.hidden !== 1)).toBe(true);
     db.close();
   });
+
+  it("serves the built play UI next to the API when web/dist exists", async () => {
+    const dist = path.resolve("web/dist/index.html");
+    if (!fs.existsSync(dist)) return;
+    const dbPath = path.join(dir, "game.db");
+    const db = seed(dbPath);
+    const dm = new MockProvider([]);
+    const scribe = new MockProvider([]);
+    const session = {
+      db,
+      agent: new DmAgent(db, dm, scribe, { llmGrounding: false }),
+      dbPath,
+      dm,
+      scribe,
+    };
+    const app = createApp(session);
+    const page = await app.request("/");
+    expect(page.status).toBe(200);
+    expect(await page.text()).toContain("The Saltmine Warrens");
+    db.close();
+  });
 });
